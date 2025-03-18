@@ -8,7 +8,7 @@ Ensure tasks are properly tracked, understood, and maintained throughout the pro
 
 Prerequisites:
 Get current system information like OS and current date
-[tasks-definition.mdc](mdc:.cursor/rules/tasks-definition.mdc)
+[tasks-definition.md](tasks-definition.md)
 
 1. **Read and Understand Task History:**
     - Load all task files from the `.project/tasks` directory

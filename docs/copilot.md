@@ -33,6 +33,20 @@ Copilot will automatically create the folder structure based on the defined rule
 ![Folder Structure Creation](img/copilot_4.png)
 ![Final Project Structure](img/copilot_5.png)
 
+
+### 5. Specs Generation
+1. Begin typing "#init..." in the Copilot chat
+2. Select the init-specs rule from the suggestions
+3. Add your project description
+
+For this example we are using following prompt:
+
+```
+create specs for following app:
+
+A Python command-line interface (CLI) application that enables users to download, explore, and analyze datasets from Hugging Face. The application features a rich, elegant interface built with the Rich library and provides comprehensive dataset exploration capabilities. The application operates exclusively in interactive mode without command-line arguments.
+```
+
 ---
 *Note: Make sure to follow each step in order to properly set up your project with Pilot Rules Copilot.*
 

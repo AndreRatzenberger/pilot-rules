@@ -8,7 +8,7 @@ Ensure specifications are properly maintained, understood, and kept in sync with
 
 Prerequisites
 Get current system information like OS and current date
-[specs-definition.mdc](mdc:.cursor/rules/specs-definition.mdc)
+[specs-definition.md](specs-definition.md)
 
 1. **Read and Understand Existing Specifications:**
     - Load all specification files from the `.project/specs` directory.

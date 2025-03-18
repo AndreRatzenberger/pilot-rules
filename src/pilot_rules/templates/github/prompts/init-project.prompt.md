@@ -16,7 +16,7 @@ Get current system information like OS and current date
 
 
 2. **Check for Valid Specs Structure:**
-    - [specs-definition.mdc](mdc:.cursor/rules/specs-definition.mdc)
+    - [specs-definition.md](specs-definition.md)
     - Verify if the `.project/specs` directory exists.
     - Check if the `SPECS.md` index file exists in the `.project` directory.
 
@@ -31,7 +31,7 @@ Get current system information like OS and current date
 
 
 5. **Check for Valid Tasks Structure:**
-    - [tasks-definition.mdc](mdc:.cursor/rules/tasks-definition.mdc)
+    - [tasks-definition.md](tasks-definition.md)
     - Verify if the `.project/tasks` directory exists.
     - Check if the `TASKS.md` index file exists in the `.project` directory.
 

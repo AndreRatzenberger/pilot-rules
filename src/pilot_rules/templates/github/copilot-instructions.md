@@ -1,6 +1,5 @@
 # Copilot Rules
 
-
 This document provides clear and streamlined guidelines to leverage AI coding agents effectively, ensuring disciplined and structured project development without sacrificing flexibility.
 
 ## MAIN PRINCIPLES
