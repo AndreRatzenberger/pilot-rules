@@ -4,6 +4,37 @@
 
 This repository contains a collection of custom rules for AI-assisted development that significantly enhance your productivity and code quality. These rules provide structure, automation, and consistency to your development process, regardless of which AI assistant you use.
 
+
+## Quick Setup 🛠️
+
+You can quickly set up the rules structure in any project using `pilot-rules`. There are several ways to use it:
+
+### Direct Usage (no installation)
+```bash
+# For Cursor AI
+uvx pilot-rules --cursor
+
+# For GitHub Copilot
+uvx pilot-rules --copilot
+```
+
+### Permanent Installation
+```bash
+# Install globally with pipx (recommended)
+pipx install pilot-rules
+
+# Then use from anywhere
+pilot-rules --cursor
+pilot-rules --copilot
+```
+
+The tool will:
+- Create the necessary directory structure
+- Set up initial configuration files
+- Add tool-specific templates
+- Display a getting started guide
+
+
 ## The Future of Development is Here 🌟
 
 AI is transforming software development, and these rules represent a significant leap forward in this evolution. This repository showcases a fundamental paradigm shift in how we build software:
@@ -126,13 +157,6 @@ The rules system provides numerous advantages:
 - **Improved Planning** - Create realistic task timelines with proper dependencies
 - **Documentation-Driven** - Maintain thorough documentation throughout the project lifecycle
 
-## Getting Started 🚀
-
-1. Clone this repository
-2. Choose your preferred AI assistant:
-   - [Cursor Guide](README_cursor.md)
-   - [GitHub Copilot Guide](README_copilot.md)
-3. Follow the tool-specific guide to implement the workflow
 
 ## Advanced Usage 🔧
 
