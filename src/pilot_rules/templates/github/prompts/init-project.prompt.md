@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: false
----
 # Command Prompt for Coding Agent: Project Validation and Initialization
 
 ## Objective

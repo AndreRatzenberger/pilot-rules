@@ -7,6 +7,8 @@ This repository contains a collection of custom rules for AI-assisted developmen
 
 ## Quick Setup 🛠️
 
+Requirements: `uv` - https://github.com/astral-sh/uv
+
 You can quickly set up the rules structure in any project using `pilot-rules`. There are several ways to use it:
 
 ### Direct Usage (no installation)

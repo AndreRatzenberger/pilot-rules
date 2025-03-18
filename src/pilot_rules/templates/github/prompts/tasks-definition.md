@@ -1,8 +1,3 @@
----
-description: Definition of TASKS and tasks
-globs: 
-alwaysApply: false
----
 # Task definition prompt
 
 Tasks in this project are managed systematically to ensure clarity and traceability. Each task is saved in the `.project/tasks` directory, and an index of all tasks is maintained in `.project/TASKS.md` for a quick overview of currently open tasks.

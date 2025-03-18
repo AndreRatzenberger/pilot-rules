@@ -1,8 +1,3 @@
----
-description: Definition of SPECS and specifications
-globs: 
-alwaysApply: false
----
 # Specification definition prompt
 
 Specifications in this project are managed systematically to ensure clarity, completeness, and traceability. Each specification is saved in the `.project/specs` directory, and an index of all specifications is maintained in `.project/SPECS.md` for a quick overview of project requirements.

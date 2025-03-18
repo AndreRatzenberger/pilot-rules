@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: false
----
 # Command Prompt for Coding Agent: Specification Management
 
 ## Objective
