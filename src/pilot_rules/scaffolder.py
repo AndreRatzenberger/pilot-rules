@@ -1,9 +1,33 @@
 import os
 import shutil
 import argparse
+import tomli
 from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
+
+def get_version() -> str:
+    """
+    Get the current version from pyproject.toml.
+    
+    Returns:
+        str: The current version number
+    """
+    try:
+        # Find pyproject.toml by looking in parent directories
+        current_dir = Path(__file__).parent
+        while current_dir.parent != current_dir:  # Stop at root directory
+            pyproject_path = current_dir / "pyproject.toml"
+            if pyproject_path.exists():
+                with open(pyproject_path, "rb") as f:
+                    pyproject_data = tomli.load(f)
+                return pyproject_data["project"]["version"]
+            current_dir = current_dir.parent
+            
+        # If we get here, we couldn't find pyproject.toml
+        return "unknown"
+    except Exception:
+        return "unknown"
 
 def display_guide(guide_path: Path) -> None:
     """
@@ -70,6 +94,15 @@ def copy_template(template_type: str, root_dir: Path) -> None:
 
 def main():
     console = Console()
+    
+    # Clear the console
+    console.clear()
+    
+    # Print header information
+    version = get_version()
+    console.print(f"[bold blue]Pilot Rules v{version}[/bold blue]")
+    console.print("[blue]www.whiteduck.de[/blue]")
+    console.print()  # Empty line
     
     parser = argparse.ArgumentParser(description="Copy template files for Cursor or Copilot")
     group = parser.add_mutually_exclusive_group(required=True)

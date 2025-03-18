@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "rich>=13.9.4",
+    "tomli>=2.0.1",
 ]
 
 [project.scripts]
