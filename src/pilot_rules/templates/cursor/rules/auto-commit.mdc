@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Automatically commit changes using conventional commits format
+      
+## When a file is changed or saved, I'll:
+
+1. Determine the appropriate commit type based on the change:
+    - `feat`: For new features or functionality
+    - `fix`: For bug fixes
+    - `docs`: For documentation changes (including specs)
+    - `style`: For formatting changes that don't affect code
+    - `refactor`: For code restructuring without feature changes
+    - `perf`: For performance improvements
+    - `test`: For adding or correcting tests
+    - `chore`: For maintenance tasks and build changes
+
+2. Extract scope from the file path (directory structure)
+
+3. Create a commit message in the format: `type(scope): description`
+
+4. For spec files, I'll use the format: `docs(specs): update specifications for <component>`
+
+
+## When a build succeeds, commit the changes
+
+After a successful build, I'll:
+1. Add all changed files to git staging
+2. Create an appropriate conventional commit message
+3. Check if README needs updating based on the changes
+4. Commit the changes
+
+This ensures all successful builds are properly committed
+
+
+## When tests pass, commit the changes
+
+After successful tests, I'll:
+1. Add all changed files to git staging
+2. Create a conventional commit message, usually with `test` or `fix` type
+3. Check if README needs updating based on recent changes:
+    - Analyze if implemented features are documented in README
+    - Compare with README content
+    - Flag if README is missing information about new features
+4. Commit the changes
+
+This ensures test-verified changes are committed and documentation
+stays in sync with implementation.
