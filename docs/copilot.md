@@ -21,6 +21,9 @@ This guide will walk you through setting up and using the Pilot Rules Copilot in
 2. Select Sonnet 3.7 as your model
    ![Opening Copilot Agents Mode](img/copilot_2.png)
 
+"Edit mode" doesn't work as accurately as the agents mode.
+You can try it, but probably have to handhold the bot.
+
 ### 3. Initialize Project
 1. Begin typing "#init..." in the Copilot chat
 2. Select the init-project rule from the suggestions

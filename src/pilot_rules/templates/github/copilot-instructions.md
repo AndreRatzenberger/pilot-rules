@@ -32,3 +32,7 @@ This document provides clear and streamlined guidelines to leverage AI coding ag
 
 - **Rule Simplicity:**
   - Avoid unnecessary complexity in rules. Focus clearly on outcomes and workflows rather than exhaustive detail on tooling or tech stacks.
+
+## User Interaction
+
+- If the user links a *.prompt.md file, execute the prompt. Don't try to edit it except the user asks for specific changes.
