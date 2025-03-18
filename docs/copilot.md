@@ -6,6 +6,13 @@ This guide will walk you through setting up and using the Pilot Rules Copilot in
 - Visual Studio Code
 - Terminal access
 
+Copilot Agents mode is currently rolling out as preview.
+If your Copilot doesn't has this feature yet you need to install [VSCode Insiders](https://code.visualstudio.com/insiders/).
+
+Activate the agents in the settings
+
+![Copilot Terminal Setup](img/agent.webp)
+
 ## Setup Instructions
 
 ### 1. Initial Setup
@@ -19,10 +26,11 @@ This guide will walk you through setting up and using the Pilot Rules Copilot in
 ### 2. Configure Copilot
 1. Open Copilot in "Agents Mode"
 2. Select Sonnet 3.7 as your model
+
    ![Opening Copilot Agents Mode](img/copilot_2.png)
 
 "Edit mode" doesn't work as accurately as the agents mode.
-You can try it, but probably have to handhold the bot.
+You can try it, but probably have to handhold the bot a lot more.
 
 ### 3. Initialize Project
 1. Begin typing "#init..." in the Copilot chat
