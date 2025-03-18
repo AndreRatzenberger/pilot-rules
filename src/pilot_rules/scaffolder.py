@@ -2,6 +2,32 @@ import os
 import shutil
 import argparse
 from pathlib import Path
+from rich.console import Console
+from rich.markdown import Markdown
+
+def display_guide(guide_path: Path) -> None:
+    """
+    Display the markdown guide using rich formatting.
+    
+    Args:
+        guide_path: Path to the markdown guide file
+    """
+    console = Console()
+    
+    try:
+        with open(guide_path, 'r', encoding='utf-8') as f:
+            markdown_content = f.read()
+            
+        markdown = Markdown(markdown_content)
+        console.print("\n")  # Add some spacing
+        console.rule("[bold blue]Getting Started Guide")
+        console.print("\n")  # Add some spacing
+        console.print(markdown)
+        console.print("\n")  # Add some spacing
+        console.rule("[bold blue]End of Guide")
+        
+    except Exception as e:
+        console.print(f"[red]Error displaying guide: {str(e)}[/red]")
 
 def copy_template(template_type: str, root_dir: Path) -> None:
     """
@@ -14,13 +40,16 @@ def copy_template(template_type: str, root_dir: Path) -> None:
     # Get the directory where the package is installed
     package_dir = Path(__file__).parent
     templates_dir = package_dir / "templates"
+    guides_dir = package_dir / "guides"
     
     if template_type == "cursor":
         source_dir = templates_dir / "cursor"
         target_dir = root_dir / ".cursor"
+        guide_file = guides_dir / "cursor.md"
     elif template_type == "copilot":
         source_dir = templates_dir / "github"
         target_dir = root_dir / ".github"
+        guide_file = guides_dir / "copilot.md"
     else:
         raise ValueError(f"Unknown template type: {template_type}")
 
@@ -36,8 +65,12 @@ def copy_template(template_type: str, root_dir: Path) -> None:
             shutil.copy2(item, target_dir / item.name)
         elif item.is_dir():
             shutil.copytree(item, target_dir / item.name, dirs_exist_ok=True)
+            
+    return guide_file
 
 def main():
+    console = Console()
+    
     parser = argparse.ArgumentParser(description="Copy template files for Cursor or Copilot")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--cursor", action="store_true", help="Copy Cursor templates")
@@ -50,13 +83,17 @@ def main():
     
     try:
         if args.cursor:
-            copy_template("cursor", root_dir)
-            print(f"Successfully copied Cursor templates to {root_dir / '.cursor'}")
+            guide_file = copy_template("cursor", root_dir)
+            console.print(f"[green]Successfully copied Cursor templates to {root_dir / '.cursor'}[/green]")
         elif args.copilot:
-            copy_template("copilot", root_dir)
-            print(f"Successfully copied Copilot templates to {root_dir / '.github'}")
+            guide_file = copy_template("copilot", root_dir)
+            console.print(f"[green]Successfully copied Copilot templates to {root_dir / '.github'}[/green]")
+            
+        # Display the appropriate guide
+        display_guide(guide_file)
+        
     except Exception as e:
-        print(f"Error: {str(e)}")
+        console.print(f"[red]Error: {str(e)}[/red]")
         exit(1)
 
 if __name__ == "__main__":
