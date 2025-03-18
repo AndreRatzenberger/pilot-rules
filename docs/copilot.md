@@ -48,6 +48,9 @@ Copilot will automatically create the folder structure based on the defined rule
 
 
 ### 5. Specs Generation
+
+**⚠️ It is recommended to start a new agent everytime you want to execute a new command-prompt**
+
 1. Begin typing "#init..." in the Copilot chat
 2. Select the init-specs rule from the suggestions
 3. Add your project description
@@ -59,6 +62,8 @@ create specs for following app:
 
 A Python command-line interface (CLI) application that enables users to download, explore, and analyze datasets from Hugging Face. The application features a rich, elegant interface built with the Rich library and provides comprehensive dataset exploration capabilities. The application operates exclusively in interactive mode without command-line arguments.
 ```
+
+![Project Specs](img/copilot_6.png)
 
 ---
 *Note: Make sure to follow each step in order to properly set up your project with Pilot Rules Copilot.*
