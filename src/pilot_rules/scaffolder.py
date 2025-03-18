@@ -25,9 +25,9 @@ def get_version() -> str:
             current_dir = current_dir.parent
             
         # If we get here, we couldn't find pyproject.toml
-        return "unknown"
+        return "0.1.x"
     except Exception:
-        return "unknown"
+        return "0.1.x"
 
 def display_guide(guide_path: Path) -> None:
     """
