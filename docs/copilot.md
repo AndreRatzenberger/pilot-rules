@@ -5,6 +5,7 @@ This guide will walk you through setting up and using the Pilot Rules Copilot in
 ## Prerequisites
 - Visual Studio Code
 - Terminal access
+- `uv` - https://github.com/astral-sh/uv
 
 Copilot Agents mode is currently rolling out as preview.
 If your Copilot doesn't has this feature yet you need to install [VSCode Insiders](https://code.visualstudio.com/insiders/).
