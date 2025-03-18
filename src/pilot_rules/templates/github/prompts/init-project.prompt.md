@@ -2,7 +2,7 @@
 
 ## Objective
 
-Ensure the current workspace is a valid project. Support projects created with UV, projects with `.venv` and `requirements.txt`, and projects with Conda.
+Ensure the current workspace is a valid project. Support projects created with UV.
 
 ## Steps - Follow this exact order!
 
