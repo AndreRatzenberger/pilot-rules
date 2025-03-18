@@ -36,12 +36,14 @@ You can try it, but probably have to handhold the bot a lot more.
 1. Begin typing "#init..." in the Copilot chat
 2. Select the init-project rule from the suggestions
 3. Send your selection
+
    ![Initializing Project](img/copilot_3.png)
 
 ### 4. Project Generation
 Copilot will automatically create the folder structure based on the defined rules.
 
 ![Folder Structure Creation](img/copilot_4.png)
+
 ![Final Project Structure](img/copilot_5.png)
 
 
