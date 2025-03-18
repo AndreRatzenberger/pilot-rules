@@ -52,7 +52,7 @@ Copilot will automatically create the folder structure based on the defined rule
 
 **⚠️ It is recommended to start a new agent everytime you want to execute a new command-prompt**
 
-1. Begin typing "#init..." in the Copilot chat
+1. Start a new agent session and begin typing "#init..." in the Copilot chat
 2. Select the init-specs rule from the suggestions
 3. Add your project description
 
