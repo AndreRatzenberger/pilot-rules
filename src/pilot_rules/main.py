@@ -108,6 +108,8 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--cursor", action="store_true", help="Copy Cursor templates")
     group.add_argument("--copilot", action="store_true", help="Copy Copilot templates")
+    group.add_argument("--interactive", action="store_true", help="Interactive mode")
+    group.add_argument("--collect", action="store_true", help="Collect code")
     
     args = parser.parse_args()
     
