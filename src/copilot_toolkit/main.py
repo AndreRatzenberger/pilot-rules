@@ -252,7 +252,22 @@ def main():
             # Success/Error messages printed within copy_template
 
         elif args.specs:
+            file_or_folder = args.input
             console.print("[cyan]Starting specs creation process...[/cyan]")
+            # if folder
+            if os.path.isdir(file_or_folder):
+                collector.run_collection(
+                    include_args=[f"py,md:./{file_or_folder}"],
+                    exclude_args=[],
+                    output_arg=None,
+                    config_arg=None
+                )
+                output = speak_to_agent("specs", "repository_analysis.md", True)
+            # if file
+            elif os.path.isfile(file_or_folder):
+                output = speak_to_agent("specs", file_or_folder, True)
+                
+            collector.run_collection()
             output = speak_to_agent("specs", args.input, True)
             markdown = Markdown(output.description)
             console.print(output.name)
