@@ -1,6 +1,6 @@
 [project]
 name = "copilot-toolkit"
-version = "0.2.1"
+version = "0.2.11"
 description = "🚀 A toolkit for coding agents 🚀 Get the most out of GitHub Copilot, Cursor and Co. Powered by flock."
 readme = "README.md"
 authors = [

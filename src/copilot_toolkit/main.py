@@ -7,11 +7,13 @@ from pathlib import Path
 from typing import Optional
 
 # Third-party imports
+from dotenv import set_key
 import tomli
 from rich.console import Console
 from rich.markdown import Markdown
 
 from copilot_toolkit import collector
+from copilot_toolkit.agent import speak_to_agent
 
 # --- Import the refactored collector entry point ---
 
@@ -32,7 +34,7 @@ def get_version() -> str:
         while current_dir != current_dir.parent: # Stop at root directory '/'
             pyproject_path = current_dir / "pyproject.toml"
             if pyproject_path.exists():
-                print(f"DEBUG: Found pyproject.toml at {pyproject_path}") # Debug print
+                #print(f"DEBUG: Found pyproject.toml at {pyproject_path}") # Debug print
                 with open(pyproject_path, "rb") as f:
                     pyproject_data = tomli.load(f)
                 version = pyproject_data.get("project", {}).get("version", "0.0.0")
@@ -42,10 +44,10 @@ def get_version() -> str:
             current_dir = current_dir.parent
 
         # If not found after searching upwards
-        print("DEBUG: pyproject.toml with version not found.") # Debug print
+        #print("DEBUG: pyproject.toml with version not found.") # Debug print
         return "0.0.0" # Fallback if not found
     except Exception as e:
-        print(f"DEBUG: Error getting version: {e}") # Debug print
+        #print(f"DEBUG: Error getting version: {e}") # Debug print
         import traceback
         traceback.print_exc() # Print error during dev
         return "0.0.0" # Fallback on error
@@ -168,6 +170,18 @@ def main():
     action_group.add_argument("--cursor", action="store_true", help="Scaffold Cursor templates (.cursor)")
     action_group.add_argument("--copilot", action="store_true", help="Scaffold Copilot templates (.github)")
     action_group.add_argument("--collect", action="store_true", help="Collect code from the repository")
+    action_group.add_argument("--app", action="store_true", help="Create a standalone webapp based on some data")
+    action_group.add_argument("--prompt", action="store_true", help="Prompt an agent to do something")
+    action_group.add_argument("--build", action="store_true", help="Build the project")
+    action_group.add_argument("--clean", action="store_true", help="Clean the project")
+    action_group.add_argument("--init", action="store_true", help="Initialize a new project")
+    action_group.add_argument("--interactive", action="store_true", help="Interactive mode")
+    action_group.add_argument("--specs", action="store_true", help="Create a project specification")
+    action_group.add_argument(
+        "--set_key",
+        metavar="KEY",
+        help="Set the API key for the agent"
+    )
 
     # --- Options for Code Collection ---
     collect_group = parser.add_argument_group('Code Collection Options (used with --collect)')
@@ -190,6 +204,12 @@ def main():
         default=None, # Default is handled inside the collector logic now
         metavar="FILEPATH",
         help=f"Path to the output Markdown file (default: '{collector.config.DEFAULT_OUTPUT_FILENAME}')"
+    )
+    collect_group.add_argument(
+        "--input",
+        default=None, # Default is handled inside the collector logic now
+        metavar="FILEPATH",
+        help=f"Path to the input file or folder"
     )
     collect_group.add_argument(
         "--config",
@@ -223,6 +243,32 @@ def main():
         elif args.copilot:
             guide_file_to_display = copy_template("copilot", scaffold_root_dir)
             # Success/Error messages printed within copy_template
+
+        elif args.app:
+            console.print("[cyan]Starting app creation process...[/cyan]")
+            output = speak_to_agent("app", args.input, True)
+            console.print(output)
+            console.print("[green]App creation process finished.[/green]")
+            # Success/Error messages printed within copy_template
+
+        elif args.specs:
+            console.print("[cyan]Starting specs creation process...[/cyan]")
+            output = speak_to_agent("specs", args.input, True)
+            markdown = Markdown(output.description)
+            console.print(output.name)
+            console.print(output.output_dictionary_definition)
+            console.print(markdown)
+            console.print("[green]Specs creation process finished.[/green]")
+            for key, value in output.output.items():
+                # create a file with the key as the filename and the value as the content
+                # create the directory if it doesn't exist
+                Path(key).parent.mkdir(parents=True, exist_ok=True)
+                with open(key, "w") as f:
+                    f.write(value)
+            # Success/Error messages printed within copy_template
+
+        elif args.set_key:
+            set_key('.env', 'GEMINI_API_KEY', args.set_key)
 
         # Display guide only if scaffolding was successful and returned a guide path
         if guide_file_to_display:
