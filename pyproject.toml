@@ -1,7 +1,7 @@
 [project]
-name = "pilot-rules"
-version = "0.1.9"
-description = "Add your description here"
+name = "copilot-toolkit"
+version = "0.2.1"
+description = "🚀 A toolkit for coding agents 🚀 Get the most out of GitHub Copilot, Cursor and Co. Powered by flock."
 readme = "README.md"
 authors = [
     { name = "Andre Ratzenberger", email = "andre.ratzenberger@whiteduck.de" }
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pilot-rules = "pilot_rules:main"
+copilot-toolkit = "copilot_toolkit:main"
 
 [build-system]
 requires = ["hatchling"]

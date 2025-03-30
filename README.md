@@ -1,19 +1,27 @@
-# PilotRules - Get the most out of your coding agents 🚀
+# Copilot-Toolkit 🚀 A toolkit for coding agents 🚀 
 
-> ⚠️ **Important**: If you're using AI coding assistants without rules, you're not maximizing their potential!
+Get the most out of GitHub Copilot, Cursor and Co. Powered by flock.
 
-This repository contains a collection of custom rules for AI-assisted development that significantly enhance your productivity and code quality. These rules provide structure, automation, and consistency to your development process, regardless of which AI assistant you use.
+This repository contains a collection of tools and configuration like custom rules for AI-assisted development that significantly enhance your productivity and code quality. These tools provide structure, automation, and consistency to your development process, regardless of which AI assistant you use.
 
-Also it provides a small application which help you scaffold such rules, optimize them for your use case and even offer tools for cursor/copilot to use which expand their toolkit
+Expand the abilities of GitHub Copilot, Cursor and other LLM-based development agents.
+For example with the help of custom rules enable Copilot to follow project management best practices which will improve the quality of the code and the project tenfold.
+
+Do custom code analysis and share the result with your coding agents, or create automatic documentations.
 
 
-## Quick Setup 🛠️
+## Quick Setup 🛠️ - No Installation
 
-Requirements: `uv` - https://github.com/astral-sh/uv
+Requirements: [`uv`](https://github.com/astral-sh/uv)
 
-You can quickly set up the rules structure in any project using `pilot-rules`. There are several ways to use it:
+You can use everything `copilot-toolkit` has to offer without installing anything else — just make sure `uv` is available on your system.
 
-### Scaffold rules (no installation)
+---
+
+## Non-agentic Features
+
+### Scaffold Rules
+
 ```bash
 # For Cursor AI
 uvx pilot-rules --cursor
@@ -22,17 +30,81 @@ uvx pilot-rules --cursor
 uvx pilot-rules --copilot
 ```
 
-### Collect Code
-```bash
-# Will collect all .py files in "." and all subfolders and writes them into a code.md in the current working dir
-uvx pilot-rules --collect 
+---
 
-# Will collect all .py and .js files in "." and all subfolders, except paths containing "external"
-# Will also collect all .md files ind "docs" and all its subfolders
-# will save the result in .project/code.md
-uvx pilot-rules --collect ("py,js",".","external"), ("md","docs") --o .project/code.md
+### Collect Code
+
+```bash
+# Collect all .py files in the current directory and subdirectories
+# Writes output to code.md in the current directory
+
+uvx pilot-rules --collect
+
+# which is the same as
+uvx pilot-rules --collect \
+  --include "py:." \
+  --output repository_analysis.md
 ```
 
+```bash
+# Collect multiple file types from multiple roots
+# Excludes paths containing 'external'
+# syntax
+# <file extensions>:<folder>
+# *:. 
+# all files in all folders
+# Writes output to .project/code.md
+uvx pilot-rules --collect \
+  --include "py,js:." \
+  --exclude "*:external" \
+  --include "md:docs" \
+  --output .project/code.md
+```
+
+### Agentic Features
+
+Agentic Features are abusing making use of Gemini's immense context window.
+Paired with the improved abilities of Gemini 2.5 results in tools that were not possible ever before.
+
+```bash
+# create specifications based on the current project
+uvx copilot-toolkit --specs .project/
+
+uvx copilot-toolkit --prompt specs --def specs.def --code .
+```
+
+
+
+---
+
+### Use a Config File (Recommended for Complex Setups)
+
+Instead of passing everything via CLI, you can define your sources and output in a simple `.toml` file.
+
+Example `pilot-rules.toml`:
+
+```toml
+[[source]]
+exts = ["py", "js"]
+root = "."
+exclude = ["external"]
+
+[[source]]
+exts = ["md"]
+root = "docs"
+
+output = ".project/code.md"
+```
+
+Then run:
+
+```bash
+uvx pilot-rules --collect --config pilot-rules.toml
+```
+
+---
+
+Let your coding agents work *with* your rules — not against them.
 
 ### Permanent Installation
 ```bash
