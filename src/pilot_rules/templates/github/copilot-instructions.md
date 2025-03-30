@@ -21,8 +21,9 @@ This document provides clear and streamlined guidelines to leverage AI coding ag
 
 1. **User Request** → Clearly captures user intentions.
 2. **Specification Updates** → Update `.project/specs/` accordingly.
+2. **UserStory Creation** → Update `.project/userstories/` accordingly.
 3. **Task Creation** → Create structured tasks in `.project/tasks/`.
-4. **Implementation** → Begin only after task and spec confirmation.
+4. **Implementation** → Begin only after tasks and userstories are confirmed.
 
 
 ## Additional Guidelines

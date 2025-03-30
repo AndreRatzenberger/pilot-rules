@@ -1,8 +1,10 @@
-# PilotRules - The rulebook for your coding agent 🚀
+# PilotRules - Get the most out of your coding agents 🚀
 
 > ⚠️ **Important**: If you're using AI coding assistants without rules, you're not maximizing their potential!
 
 This repository contains a collection of custom rules for AI-assisted development that significantly enhance your productivity and code quality. These rules provide structure, automation, and consistency to your development process, regardless of which AI assistant you use.
+
+Also it provides a small application which help you scaffold such rules, optimize them for your use case and even offer tools for cursor/copilot to use which expand their toolkit
 
 
 ## Quick Setup 🛠️
@@ -11,7 +13,7 @@ Requirements: `uv` - https://github.com/astral-sh/uv
 
 You can quickly set up the rules structure in any project using `pilot-rules`. There are several ways to use it:
 
-### Direct Usage (no installation)
+### Scaffold rules (no installation)
 ```bash
 # For Cursor AI
 uvx pilot-rules --cursor
@@ -19,6 +21,18 @@ uvx pilot-rules --cursor
 # For GitHub Copilot
 uvx pilot-rules --copilot
 ```
+
+### Collect Code
+```bash
+# Will collect all .py files in "." and all subfolders and writes them into a code.md in the current working dir
+uvx pilot-rules --collect 
+
+# Will collect all .py and .js files in "." and all subfolders, except paths containing "external"
+# Will also collect all .md files ind "docs" and all its subfolders
+# will save the result in .project/code.md
+uvx pilot-rules --collect ("py,js",".","external"), ("md","docs") --o .project/code.md
+```
+
 
 ### Permanent Installation
 ```bash
