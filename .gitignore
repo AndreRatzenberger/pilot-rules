@@ -11,3 +11,5 @@ wheels/
 .env
 repository_analysis.md
 repository_analysis.txt
+.project/
+metrics/

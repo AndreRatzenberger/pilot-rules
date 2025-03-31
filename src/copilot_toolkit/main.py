@@ -242,6 +242,12 @@ def main():
         help=f"Path to the input file or folder"
     )
     collect_group.add_argument(
+        "--prompts",
+        default=None, # Default is handled inside the collector logic now
+        metavar="FILEPATH",
+        help=f"Path to the promtp folder"
+    )
+    collect_group.add_argument(
         "--config",
         metavar="TOML_FILE",
         help="Path to a .toml configuration file for collection settings."
@@ -320,7 +326,7 @@ def main():
                         
                         # Now generate specs from the analysis
                         generate_task = progress.add_task("[yellow]Generating specifications...", total=None)
-                        output = speak_to_agent("specs", "repository_analysis.md", True)
+                        output = speak_to_agent("specs", "repository_analysis.md", True, args.prompts)
                         progress.update(generate_task, description="[green]Specifications generated successfully!")
                     except Exception as e:
                         progress.update(collect_task, description=f"[red]Error during collection: {e}")
@@ -341,15 +347,16 @@ def main():
             
             # Display results using the new rendering methods
             console.print("\n")
-            output.render_summary(console)
+            #output.render_summary(console)
             
             # Write output files and display them
-            if hasattr(output, "output") and isinstance(output.output, dict):
+            if isinstance(output, dict):
                 files_table = Table(title="Writing Output Files", box=box.ROUNDED)
                 files_table.add_column("File Path", style="cyan")
                 files_table.add_column("Status", style="green")
                 
-                for key, value in output.output.items():
+                for key, value in output.items():
+                    key = ".project/" + key
                     try:
                         # Create the directory if it doesn't exist
                         Path(key).parent.mkdir(parents=True, exist_ok=True)

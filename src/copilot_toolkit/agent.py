@@ -13,86 +13,19 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 
 
-class OutputModel(BaseModel):
+class OutputData(BaseModel):
     name: str = Field(..., description="Name of the output")
     description: str = Field(..., description="High level description of the data and functionality of the app, as well as design decisions. In beautiful markdown.")
     output_dictionary_definition: str = Field(..., description="Explanation of the output dictionary and the data it contains")
     output: dict[str, Any] = Field(..., description="The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.")
     
-    def render_summary(self, console: Console) -> None:
-        """
-        Render a pretty summary of the output to the console
-        """
-        # Show project name with a panel
-        console.print(
-            Panel(
-                f"[bold cyan]{self.name}[/bold cyan]",
-                title="[bold blue]Project[/bold blue]",
-                border_style="blue"
-            )
-        )
-        
-        # Show dictionary definition
-        console.print(
-            Panel(
-                f"[yellow]{self.output_dictionary_definition}[/yellow]",
-                title="[bold yellow]Output Structure[/bold yellow]",
-                border_style="yellow"
-            )
-        )
-        
-        # Render the markdown description
-        console.print("\n[bold magenta]Project Description:[/bold magenta]")
-        console.print(Markdown(self.description))
-        
-    def render_output_files(self, console: Console) -> None:
-        """
-        Render a table showing all the generated output files
-        """
-        if not self.output:
-            console.print("[yellow]No output files generated[/yellow]")
-            return
-            
-        # Group files by type
-        file_groups: dict[str, List[Tuple[str, str]]] = {}
-        for path, content in self.output.items():
-            file_type = path.split('.')[-1] if '.' in path else 'other'
-            if file_type not in file_groups:
-                file_groups[file_type] = []
-            file_groups[file_type].append((path, content))
-        
-        # Create a table for the files
-        files_table = Table(
-            title="Generated Output Files",
-            box=box.ROUNDED,
-            title_style="bold blue",
-            header_style="bold cyan"
-        )
-        files_table.add_column("File Type", style="green")
-        files_table.add_column("Path", style="cyan")
-        files_table.add_column("Size", style="magenta", justify="right")
-        
-        for file_type, files in sorted(file_groups.items()):
-            for path, content in sorted(files, key=lambda x: x[0]):
-                content_size = len(content)
-                size_str = f"{content_size} bytes"
-                if content_size > 1024:
-                    size_str = f"{content_size / 1024:.1f} KB"
-                
-                files_table.add_row(
-                    file_type,
-                    path,
-                    size_str
-                )
-        
-        console.print(files_table)
 
 # Create a console for rich output
 console = Console()
 
-def load_prompt(action: str) -> str:
+def load_prompt(action: str, prompt_folder:str) -> str:
     """Load prompt from file."""
-    prompt_path = f"prompts/{action}.md"
+    prompt_path = f"{prompt_folder}/{action}.md"
     try:
         with open(prompt_path, "r") as f:
             return f.read()
@@ -103,7 +36,7 @@ def load_prompt(action: str) -> str:
         console.print(f"[red]Error loading prompt from '{prompt_path}': {e}[/red]")
         raise
 
-def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = False) -> OutputModel:
+def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = False, prompt_folder : str = "prompts") -> dict:
     """
     Communicate with an LLM agent to perform a specified action.
     
@@ -115,6 +48,12 @@ def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = Fals
     Returns:
         OutputModel instance with the agent's response
     """
+    class OutputDataIntern(BaseModel):
+        name: str = Field(..., description="Name of the output")
+        description: str = Field(..., description="High level description of the data and functionality of the app, as well as design decisions. In beautiful markdown.")
+        output_dictionary_definition: str = Field(..., description="Explanation of the output dictionary and the data it contains")
+        output: dict[str, Any] = Field(..., description="The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.")
+  
     MODEL = "gemini/gemini-2.5-pro-exp-03-25" #"groq/qwen-qwq-32b"    #"openai/gpt-4o" # 
     
     # Show which model we're using
@@ -133,14 +72,14 @@ def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = Fals
         
         try:
             if action == "app":
-                prompt = load_prompt("app")
-                prompt_definition = load_prompt("app.def")
+                prompt = load_prompt("app",prompt_folder)
+                prompt_definition = load_prompt("app.def",prompt_folder)
             elif action == "specs":
-                prompt = load_prompt("specs")
-                prompt_definition = load_prompt("specs.def")
+                prompt = load_prompt("specs",prompt_folder)
+                prompt_definition = load_prompt("specs.def",prompt_folder)
             else:
                 prompt = load_prompt(action)
-                prompt_definition = load_prompt(f"{action}.def")
+                prompt_definition = load_prompt(f"{action}.def",prompt_folder)
                 
             progress.update(load_task, description="[green]Prompts loaded successfully!")
         except Exception as e:
@@ -164,9 +103,11 @@ def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = Fals
                 name=f"{action}_agent",
                 description=prompt,
                 input="prompt: str, prompt_definition: str, input_data: str",
-                output="output: OutputModel",
-                max_tokens=60000
+                output="output: dict | The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.",
+                max_tokens=60000,
+                no_output=True
             )
+            
             
             # Add the agent to the Flock
             flock.add_agent(app_agent)
