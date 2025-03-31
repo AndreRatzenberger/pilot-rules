@@ -13,6 +13,7 @@ from .config import process_config_and_args
 from .discovery import collect_files
 from .analysis import analyze_code_dependencies, get_common_patterns, find_key_files
 from .reporting import generate_markdown
+from .utils import console, print_header, print_subheader, print_success, print_warning, print_error, print_file_stats
 
 def run_collection(
     include_args: Optional[List[str]],
@@ -28,6 +29,7 @@ def run_collection(
     try:
         # 1. Process Configuration and Arguments
         # This resolves paths and merges CLI/config settings
+        print_header("Code Collection Process", "magenta")
         final_sources, final_excludes, final_output_path = process_config_and_args(
             include_args=include_args,
             exclude_args=exclude_args,
@@ -40,12 +42,16 @@ def run_collection(
         collected_files, actual_extensions = collect_files(final_sources, final_excludes)
 
         if not collected_files:
-            print("Warning: No files found matching the specified criteria.")
+            print_warning("No files found matching the specified criteria.")
             # Generate an empty/minimal report? Or just exit?
             # Let generate_markdown handle the empty list for now.
         else:
-            print(f"Found {len(collected_files)} files to include in the report.")
-            print(f"File extensions found: {', '.join(sorted(list(actual_extensions)))}")
+            print_success(f"Found [bold green]{len(collected_files)}[/bold green] files to include in the report.")
+            ext_list = ", ".join(sorted(list(actual_extensions)))
+            console.print(f"File extensions found: [cyan]{ext_list}[/cyan]")
+            
+            # Display file statistics in a nice table
+            print_file_stats(collected_files, "Collection Statistics")
 
 
         # 3. Perform Analysis (Conditional based on files found)
@@ -56,16 +62,16 @@ def run_collection(
         # Only run Python-specific analysis if .py files are present
         has_python_files = '.py' in actual_extensions
         if has_python_files:
-            print("Analyzing Python dependencies...")
+            print_subheader("Analyzing Python Dependencies", "blue")
             dependencies = analyze_code_dependencies(collected_files)
-            print("Identifying common patterns (Python)...")
+            print_subheader("Identifying Code Patterns", "blue")
             patterns = get_common_patterns(collected_files)
         else:
-            print("Skipping Python-specific analysis (no .py files found).")
+            print_warning("Skipping Python-specific analysis (no .py files found).")
 
         # Find key files (uses heuristics applicable to various file types)
         if collected_files:
-             print("Identifying key files...")
+             # Note: find_key_files now has its own print_subheader call
              key_files = find_key_files(collected_files, dependencies) # Pass all files
 
 
@@ -83,15 +89,12 @@ def run_collection(
 
     except ValueError as e:
          # Configuration or argument parsing errors
-         print(f"[Collector Error] Configuration Error: {e}", file=sys.stderr)
-         # Re-raise or exit? Re-raising lets the caller (main.py) handle exit status.
-         raise # Or sys.exit(1)
+         print_error(f"Configuration Error: {e}", 1)
     except Exception as e:
          # Catch-all for unexpected errors during collection/analysis/reporting
-         print(f"[Collector Error] An unexpected error occurred: {e}", file=sys.stderr)
+         print_error(f"An unexpected error occurred: {e}", 1)
          import traceback
          traceback.print_exc()
-         raise # Or sys.exit(1)
 
 
 # __all__ = ['run_collection'] # Optionally define the public API

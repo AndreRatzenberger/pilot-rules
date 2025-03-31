@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Set, Tuple
 
 # Import functions from sibling modules
-from .utils import get_file_metadata
+from .utils import get_file_metadata, console, print_header, print_subheader, print_success, print_warning, print_error
 from .analysis import extract_python_components # Import needed analysis functions
 
 
@@ -97,7 +97,8 @@ def generate_markdown(
     root_folder_display: str = "." # How to display the root in summary/tree
 ) -> None:
     """Generate a comprehensive markdown document about the codebase."""
-    print(f"Generating Markdown report at '{output_path}'...")
+    print_header(f"Generating Report", "green")
+    console.print(f"Output file: [cyan]{output_path}[/cyan]")
     output_dir = output_path.parent
     output_dir.mkdir(parents=True, exist_ok=True) # Ensure output directory exists
     report_base_path = Path.cwd() # Use CWD as the base for relative paths in the report
@@ -122,7 +123,7 @@ def generate_markdown(
              try:
                  total_lines = sum(get_file_metadata(f).get("line_count", 0) for f in files)
              except Exception as e:
-                 print(f"Warning: Could not calculate total lines accurately: {e}")
+                 print_warning(f"Could not calculate total lines accurately: {e}")
                  total_lines = "N/A"
         else:
              total_lines = 0
@@ -136,10 +137,10 @@ def generate_markdown(
              if root_for_tree.is_dir():
                  md_file.write(generate_folder_tree(root_for_tree, files))
              else:
-                  print(f"Warning: Display root '{root_folder_display}' not found or not a directory, using CWD for tree.")
+                  print_warning(f"Display root '{root_folder_display}' not found or not a directory, using CWD for tree.")
                   md_file.write(generate_folder_tree(report_base_path, files))
         except Exception as tree_err:
-             print(f"Error generating folder tree: {tree_err}")
+             print_error(f"Error generating folder tree: {tree_err}")
              md_file.write(f"Error generating folder tree: {tree_err}")
         md_file.write("\n```\n\n")
 
@@ -199,83 +200,79 @@ def generate_markdown(
                           if not full_content.endswith("\n"):
                               md_file.write("\n")
                   except Exception as e:
-                      md_file.write(f"Error reading file content: {str(e)}\n")
+                      md_file.write(f"Error reading file: {e}\n")
                   md_file.write("```\n\n")
-                  # ==================================
 
-        else:
-             md_file.write("No key files identified based on current criteria.\n\n")
+        # --- Python Dependency Analysis (if applicable) ---
+        if has_python_files and dependencies:
+            md_file.write("## Python Dependencies\n\n")
+            md_file.write("This section shows Python modules and their dependencies within the project.\n\n")
 
+            dep_count = sum(len(deps) for deps in dependencies.values())
+            if dep_count > 0:
+                md_file.write("### Internal Dependencies\n\n")
+                md_file.write("```mermaid\ngraph TD;\n")
+                # Generate mermaid.js compatible graph nodes and edges
+                node_ids = {}
+                for i, file_path in enumerate(dependencies.keys()):
+                     try:
+                          rel_path = str(Path(file_path).relative_to(report_base_path))
+                     except ValueError:
+                          rel_path = str(Path(file_path).name) # Just use filename if not relative
+                     node_id = f"F{i}"
+                     node_ids[file_path] = node_id
+                     # Escape any problematic characters in label
+                     label = rel_path.replace('"', '\\"')
+                     md_file.write(f"    {node_id}[\"{label}\"];\n")
 
-        # --- Design Patterns Section ---
-        # (This section remains the same - it only lists file paths)
-        if patterns:
-             md_file.write("## Design Patterns (Python Heuristics)\n\n")
-             md_file.write("Potential patterns identified based on naming and structure:\n\n")
-             for pattern_name, files_or_dict in patterns.items():
-                 title = pattern_name.replace('_', ' ').title()
-                 if isinstance(files_or_dict, list) and files_or_dict:
-                     md_file.write(f"### {title} Pattern\n\n")
-                     for f_abs in files_or_dict[:10]:
-                          try: rel_p = str(Path(f_abs).relative_to(report_base_path))
-                          except ValueError: rel_p = f_abs
-                          md_file.write(f"- `{rel_p}`\n")
-                     if len(files_or_dict) > 10: md_file.write("- ... (and more)\n")
+                # Add edges for dependencies
+                for file_path, deps in dependencies.items():
+                     if not deps:
+                          continue
+                     source_id = node_ids[file_path]
+                     for dep in deps:
+                          if dep in node_ids: # Ensure dep is in our analyzed files
+                               target_id = node_ids[dep]
+                               md_file.write(f"    {source_id} --> {target_id};\n")
+                md_file.write("```\n\n")
+
+                # Add plain text dependency list as fallback
+                md_file.write("### Dependency List (Plain Text)\n\n")
+                for file_path, deps in dependencies.items():
+                     if not deps:
+                          continue  # Skip files with no dependencies
+                     try:
+                         rel_path = str(Path(file_path).relative_to(report_base_path))
+                     except ValueError:
+                         rel_path = file_path
+                     md_file.write(f"- **{rel_path}** depends on:\n")
+                     for dep in sorted(deps):
+                          try:
+                              dep_rel = str(Path(dep).relative_to(report_base_path))
+                          except ValueError:
+                              dep_rel = dep
+                          md_file.write(f"  - {dep_rel}\n")
+
+        # --- Common Code Patterns ---
+        if patterns and patterns.get("python_patterns"):
+            py_patterns = patterns["python_patterns"]
+            if py_patterns:
+                 md_file.write("## Common Code Patterns\n\n")
+                 md_file.write("### Python Patterns\n\n")
+
+                 if py_patterns.get("common_imports"):
+                     md_file.write("#### Common Imports\n\n")
+                     for imp, count in py_patterns["common_imports"][:10]:
+                          md_file.write(f"- `{imp}` ({count} files)\n")
+                     if len(py_patterns["common_imports"]) > 10:
+                         md_file.write("- *(and more...)*\n")
                      md_file.write("\n")
-                 elif isinstance(files_or_dict, dict): # e.g., MVC
-                     has_content = any(sublist for sublist in files_or_dict.values())
-                     if has_content:
-                          md_file.write(f"### {title}\n\n")
-                          for subpattern, subfiles in files_or_dict.items():
-                              if subfiles:
-                                  md_file.write(f"**{subpattern.title()}**:\n")
-                                  for f_abs in subfiles[:5]:
-                                       try: rel_p = str(Path(f_abs).relative_to(report_base_path))
-                                       except ValueError: rel_p = f_abs
-                                       md_file.write(f"- `{rel_p}`\n")
-                                  if len(subfiles) > 5: md_file.write("  - ... (and more)\n")
-                                  md_file.write("\n")
-             md_file.write("\n")
-        elif has_python_files:
-             md_file.write("## Design Patterns (Python Heuristics)\n\n")
-             md_file.write("No common design patterns identified based on current heuristics.\n\n")
 
+                 if py_patterns.get("framework_patterns"):
+                     md_file.write("#### Framework Detection\n\n")
+                     for framework, evidence in py_patterns["framework_patterns"].items():
+                          md_file.write(f"- **{framework}**: {evidence}\n")
+                     md_file.write("\n")
 
-        # --- All Other Files Section ---
-        md_file.write("## All Analyzed Files (excluding key files)\n\n")
-        other_files = [f for f in files if f not in key_files]
-
-        if other_files:
-             for file_abs_path in other_files:
-                  try: rel_path = str(Path(file_abs_path).relative_to(report_base_path))
-                  except ValueError: rel_path = file_abs_path
-
-                  md_file.write(f"### {rel_path}\n\n")
-                  metadata = get_file_metadata(file_abs_path)
-                  md_file.write(f"- **Lines**: {metadata.get('line_count', 'N/A')}\n")
-                  md_file.write(f"- **Size**: {metadata.get('size_bytes', 0) / 1024:.2f} KB\n")
-
-                  # ==================================
-                  # --- Include FULL File Content ---
-                  md_file.write("\n**Content**:\n") # Changed from "Content Snippet"
-                  file_ext = Path(file_abs_path).suffix.lower()
-                  lang_hint = file_ext.lstrip('.') if file_ext else ""
-                  md_file.write(f"```{lang_hint}\n")
-                  try:
-                      with open(file_abs_path, "r", encoding="utf-8", errors='ignore') as code_file:
-                          # Read the entire file content
-                          full_content = code_file.read()
-                          md_file.write(full_content)
-                          # Ensure a newline at the end of the code block if file doesn't have one
-                          if not full_content.endswith("\n"):
-                               md_file.write("\n")
-                  except Exception as e:
-                      md_file.write(f"Error reading file content: {str(e)}\n")
-                  md_file.write("```\n\n")
-                  # ==================================
-        elif key_files:
-             md_file.write("All analyzed files were identified as key files and detailed above.\n\n")
-        else:
-            md_file.write("No files were found matching the specified criteria.\n\n")
-
-    print(f"Markdown report generated successfully at '{output_path}'")
+    # Final success message
+    print_success(f"Markdown report generated successfully at '{output_path}'")

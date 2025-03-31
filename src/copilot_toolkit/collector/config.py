@@ -3,6 +3,8 @@ import tomli
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
+from .utils import console, print_header, print_subheader, print_success, print_warning, print_error
+
 DEFAULT_OUTPUT_FILENAME = "repository_analysis.md"
 DEFAULT_INCLUDE_SPEC = "py:." # Default to python files in current dir
 
@@ -42,7 +44,7 @@ def load_config_from_toml(config_path: Path) -> Tuple[List[Dict], List[Dict], Op
     config_excludes = []
     config_output = None
 
-    print(f"Loading configuration from: {config_path}")
+    print_subheader(f"Loading configuration from: [cyan]{config_path}[/cyan]")
     try:
         with open(config_path, "rb") as f:
             config_data = tomli.load(f)
@@ -156,13 +158,13 @@ def process_config_and_args(
     # 3. Combine sources: CLI overrides config sources entirely if provided.
     final_sources_specs = []
     if cli_includes:
-        print("Using include sources from command line arguments.")
+        console.print("[cyan]Using include sources from command line arguments.[/cyan]")
         final_sources_specs = cli_includes # Use CLI specs directly
     elif config_sources:
-        print("Using include sources from configuration file.")
+        console.print("[cyan]Using include sources from configuration file.[/cyan]")
         final_sources_specs = config_sources # Use config specs
     else:
-        print(f"No includes specified via CLI or config, defaulting to '{DEFAULT_INCLUDE_SPEC}'.")
+        console.print(f"[yellow]No includes specified via CLI or config, defaulting to '[bold]{DEFAULT_INCLUDE_SPEC}[/bold]'.[/yellow]")
         final_sources_specs = parse_include_exclude_args([DEFAULT_INCLUDE_SPEC])
 
 
@@ -170,7 +172,7 @@ def process_config_and_args(
     # Exclude patterns remain relative path strings for fnmatch
     final_excludes = config_excludes + cli_excludes
     if final_excludes:
-         print(f"Applying {len(final_excludes)} exclusion rule(s).")
+         console.print(f"Applying [bold yellow]{len(final_excludes)}[/bold yellow] exclusion rule(s).")
 
 
     # 5. Determine final output path: CLI > Config > Default
@@ -181,7 +183,7 @@ def process_config_and_args(
 
     # Resolve output path relative to CWD
     final_output_path = Path(final_output_str).resolve()
-    print(f"Final output path: {final_output_path}")
+    console.print(f"Final output path: [bold green]{final_output_path}[/bold green]")
 
     # 6. Resolve source roots relative to CWD *after* deciding which specs to use
     resolved_final_sources = []

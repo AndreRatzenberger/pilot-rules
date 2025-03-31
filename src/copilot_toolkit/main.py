@@ -11,9 +11,17 @@ from dotenv import set_key
 import tomli
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich import box
+from rich.table import Table
+from rich.layout import Layout
+from rich.live import Live
 
 from copilot_toolkit import collector
 from copilot_toolkit.agent import speak_to_agent
+from copilot_toolkit.collector.utils import print_header, print_subheader, print_success, print_warning, print_error
+from copilot_toolkit.utils.cli_helper import init_console
 
 # --- Import the refactored collector entry point ---
 
@@ -53,16 +61,16 @@ def get_version() -> str:
         return "0.0.0" # Fallback on error
 
 
-def display_guide(guide_path: Path) -> None:
+def display_guide(guide_path: Path, console: Console) -> None:
     """
     Display the markdown guide using rich formatting.
 
     Args:
         guide_path: Path to the markdown guide file.
+        console: The Rich console instance to use for output.
     """
-    console = Console()
     if not guide_path.is_file():
-        console.print(f"[red]Error: Guide file not found at '{guide_path}'[/red]")
+        print_error(f"Guide file not found at '{guide_path}'")
         return
 
     try:
@@ -78,21 +86,21 @@ def display_guide(guide_path: Path) -> None:
         console.rule("[bold blue]End of Guide")
 
     except Exception as e:
-        console.print(f"[red]Error displaying guide '{guide_path}': {str(e)}[/red]")
+        print_error(f"Error displaying guide '{guide_path}': {str(e)}")
 
 
-def copy_template(template_type: str, root_dir: Path) -> Optional[Path]:
+def copy_template(template_type: str, root_dir: Path, console: Console) -> Optional[Path]:
     """
     Copy template files based on the specified type ('cursor' or 'copilot').
 
     Args:
         template_type: Either 'cursor' or 'copilot'.
         root_dir: The root directory (usually CWD) where to copy the templates.
+        console: The Rich console instance to use for output.
 
     Returns:
         Path to the relevant guide file if successful, None otherwise.
     """
-    console = Console()
     package_dir = Path(__file__).parent # Directory where main.py is located
     templates_dir = package_dir / "templates"
     guides_dir = package_dir / "guides"
@@ -111,14 +119,14 @@ def copy_template(template_type: str, root_dir: Path) -> Optional[Path]:
         guide_file = guides_dir / "copilot.md"
     else:
         # This case should not be reached due to argparse mutual exclusion
-        console.print(f"[red]Internal Error: Unknown template type '{template_type}'[/red]")
+        print_error(f"Internal Error: Unknown template type '{template_type}'")
         return None
 
     if not source_dir or not source_dir.is_dir():
-        console.print(f"[red]Error: Template source directory not found: '{source_dir}'[/red]")
+        print_error(f"Template source directory not found: '{source_dir}'")
         return None
     if not guide_file or not guide_file.is_file():
-        console.print(f"[red]Error: Guide file not found: '{guide_file}'[/red]")
+        print_warning(f"Guide file not found: '{guide_file}'")
         # Decide whether to proceed without a guide or stop
         # return None # Stop if guide is essential
 
@@ -126,25 +134,37 @@ def copy_template(template_type: str, root_dir: Path) -> Optional[Path]:
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        console.print(f"[red]Error: Could not create target directory '{target_dir}': {e}[/red]")
+        print_error(f"Could not create target directory '{target_dir}': {e}")
         return None
 
     # Copy the contents
-    console.print(f"Copying {template_type} templates to '{target_dir}'...")
-    try:
-        for item in source_dir.iterdir():
-            target_path = target_dir / item.name
-            if item.is_file():
-                shutil.copy2(item, target_path)
-                # console.print(f"  Copied file: {item.name}") # Optional verbose logging
-            elif item.is_dir():
-                shutil.copytree(item, target_path, dirs_exist_ok=True)
-                # console.print(f"  Copied directory: {item.name}") # Optional verbose logging
-        console.print(f"[green]Successfully copied {template_type} templates.[/green]")
-        return guide_file # Return path to guide file on success
-    except Exception as e:
-        console.print(f"[red]Error copying templates from '{source_dir}' to '{target_dir}': {e}[/red]")
-        return None
+    print_header(f"Setting up {template_type.title()} Templates", "cyan")
+    console.print(f"Target directory: [yellow]{target_dir}[/yellow]")
+    
+    # Use a spinner for copying files
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        console=console
+    ) as progress:
+        task = progress.add_task(f"[cyan]Copying {template_type} templates...", total=None)
+        
+        try:
+            for item in source_dir.iterdir():
+                target_path = target_dir / item.name
+                progress.update(task, description=f"[cyan]Copying [bold]{item.name}[/bold]...")
+                if item.is_file():
+                    shutil.copy2(item, target_path)
+                elif item.is_dir():
+                    shutil.copytree(item, target_path, dirs_exist_ok=True)
+            
+            progress.update(task, description="[green]Copy completed successfully!")
+            print_success(f"Successfully copied {template_type} templates to {target_dir}")
+            return guide_file # Return path to guide file on success
+        except Exception as e:
+            progress.update(task, description=f"[red]Error copying files: {e}")
+            print_error(f"Error copying templates from '{source_dir}' to '{target_dir}': {e}")
+            return None
 
 
 # --- Main Application Logic ---
@@ -155,10 +175,20 @@ def main():
     Handles argument parsing and delegates tasks to scaffolding or collection modules.
     """
     console = Console()
-    version = get_version()
-    console.print(f"[bold blue]Pilot Rules v{version}[/bold blue]")
-    console.print("[blue]www.whiteduck.de[/blue]") # Replace or remove if needed
-    console.print()
+    console.clear()
+    #version = get_version()
+    
+    # Create a fancy header
+    # header_panel = Panel(
+    #     f"[bold blue]Pilot Rules v{version}[/bold blue]\n[cyan]www.whiteduck.de[/cyan]",
+    #     box=box.ROUNDED,
+    #     border_style="blue",
+    #     title="[yellow]CLI Tool[/yellow]",
+    #     subtitle="[yellow]Powered by LLMs[/yellow]"
+    # )
+    # console.print(header_panel)
+    
+    init_console()
 
     parser = argparse.ArgumentParser(
         description="Manage Pilot Rules templates or collect code for analysis.",
@@ -225,7 +255,7 @@ def main():
 
     try:
         if args.collect:
-            console.print("[cyan]Starting code collection process...[/cyan]")
+            print_header("Code Collection Mode", "cyan")
             # --- Call the refactored collector function ---
             # Errors within the collector (ValueError, etc.) will be caught below
             collector.run_collection(
@@ -234,71 +264,127 @@ def main():
                 output_arg=args.output, # Pass CLI arg (can be None)
                 config_arg=args.config
             )
-            console.print("[green]Code collection process finished.[/green]")
+            print_success("Code collection process completed successfully")
 
         elif args.cursor:
-            guide_file_to_display = copy_template("cursor", scaffold_root_dir)
+            guide_file_to_display = copy_template("cursor", scaffold_root_dir, console)
             # Success/Error messages printed within copy_template
 
         elif args.copilot:
-            guide_file_to_display = copy_template("copilot", scaffold_root_dir)
+            guide_file_to_display = copy_template("copilot", scaffold_root_dir, console)
             # Success/Error messages printed within copy_template
 
         elif args.app:
-            console.print("[cyan]Starting app creation process...[/cyan]")
-            output = speak_to_agent("app", args.input, True)
-            console.print(output)
-            console.print("[green]App creation process finished.[/green]")
-            # Success/Error messages printed within copy_template
+            print_header("App Creation Mode", "magenta")
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold magenta]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("[magenta]Creating app...", total=None)
+                try:
+                    output = speak_to_agent("app", args.input, True)
+                    progress.update(task, description="[green]App created successfully!")
+                    
+                    # Use the new rendering methods instead of direct printing
+                    console.print("\n")
+                    output.render_summary(console)
+                    output.render_output_files(console)
+                    print_success("App creation process completed")
+                except Exception as e:
+                    progress.update(task, description=f"[red]Error creating app: {e}")
+                    raise
 
         elif args.specs:
             file_or_folder = args.input
-            console.print("[cyan]Starting specs creation process...[/cyan]")
-            # if folder
-            if os.path.isdir(file_or_folder):
-                collector.run_collection(
-                    include_args=[f"py,md:./{file_or_folder}"],
-                    exclude_args=[],
-                    output_arg=None,
-                    config_arg=None
-                )
-                output = speak_to_agent("specs", "repository_analysis.md", True)
-            # if file
-            elif os.path.isfile(file_or_folder):
-                output = speak_to_agent("specs", file_or_folder, True)
+            print_header("Project Specifications Generation", "yellow")
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold yellow]{task.description}"),
+                console=console
+            ) as progress:
+                collect_task = progress.add_task("[yellow]Collecting repository data...", total=None)
                 
-            collector.run_collection()
-            output = speak_to_agent("specs", args.input, True)
-            markdown = Markdown(output.description)
-            console.print(output.name)
-            console.print(output.output_dictionary_definition)
-            console.print(markdown)
-            console.print("[green]Specs creation process finished.[/green]")
-            for key, value in output.output.items():
-                # create a file with the key as the filename and the value as the content
-                # create the directory if it doesn't exist
-                Path(key).parent.mkdir(parents=True, exist_ok=True)
-                with open(key, "w") as f:
-                    f.write(value)
-            # Success/Error messages printed within copy_template
+                # If folder, run collection first
+                if os.path.isdir(file_or_folder):
+                    try:
+                        collector.run_collection(
+                            include_args=[f"py,md:./{file_or_folder}"],
+                            exclude_args=[],
+                            output_arg=None,
+                            config_arg=None
+                        )
+                        progress.update(collect_task, description="[green]Repository data collected!")
+                        
+                        # Now generate specs from the analysis
+                        generate_task = progress.add_task("[yellow]Generating specifications...", total=None)
+                        output = speak_to_agent("specs", "repository_analysis.md", True)
+                        progress.update(generate_task, description="[green]Specifications generated successfully!")
+                    except Exception as e:
+                        progress.update(collect_task, description=f"[red]Error during collection: {e}")
+                        raise
+                
+                # If file, use it directly
+                elif os.path.isfile(file_or_folder):
+                    try:
+                        generate_task = progress.add_task("[yellow]Generating specifications from file...", total=None)
+                        output = speak_to_agent("specs", file_or_folder, True)
+                        progress.update(generate_task, description="[green]Specifications generated successfully!")
+                    except Exception as e:
+                        progress.update(generate_task, description=f"[red]Error generating specifications: {e}")
+                        raise
+                else:
+                    progress.update(collect_task, description="[red]Invalid input path")
+                    raise ValueError(f"Input path is neither a file nor a directory: {file_or_folder}")
+            
+            # Display results using the new rendering methods
+            console.print("\n")
+            output.render_summary(console)
+            
+            # Write output files and display them
+            if hasattr(output, "output") and isinstance(output.output, dict):
+                files_table = Table(title="Writing Output Files", box=box.ROUNDED)
+                files_table.add_column("File Path", style="cyan")
+                files_table.add_column("Status", style="green")
+                
+                for key, value in output.output.items():
+                    try:
+                        # Create the directory if it doesn't exist
+                        Path(key).parent.mkdir(parents=True, exist_ok=True)
+                        with open(key, "w") as f:
+                            f.write(value)
+                        files_table.add_row(key, "[green]✓ Created[/green]")
+                    except Exception as e:
+                        files_table.add_row(key, f"[red]✗ Error: {e}[/red]")
+                
+                console.print(files_table)
+            
+            print_success("Specification generation completed")
 
         elif args.set_key:
-            set_key('.env', 'GEMINI_API_KEY', args.set_key)
+            print_header("Setting API Key", "green")
+            try:
+                set_key('.env', 'GEMINI_API_KEY', args.set_key)
+                print_success(f"API key set successfully in .env file")
+            except Exception as e:
+                print_error(f"Error setting API key: {e}")
 
         # Display guide only if scaffolding was successful and returned a guide path
         if guide_file_to_display:
-            display_guide(guide_file_to_display)
+            display_guide(guide_file_to_display, console)
 
     except FileNotFoundError as e:
          # Should primarily be caught within helpers now, but keep as fallback
-         console.print(f"[red]Error: Required file or directory not found: {str(e)}[/red]", file=sys.stderr)
+         print_error(f"Required file or directory not found: {str(e)}")
          exit(1)
     except ValueError as e: # Catch config errors propagated from collector
-         console.print(f"[red]Configuration Error: {str(e)}[/red]", file=sys.stderr)
+         print_error(f"Configuration Error: {str(e)}")
          exit(1)
     except Exception as e:
         # Catch-all for unexpected errors in main logic or propagated from helpers/collector
-        console.print(f"[red]An unexpected error occurred: {str(e)}[/red]", file=sys.stderr)
+        print_error(f"An unexpected error occurred: {str(e)}")
         import traceback
         traceback.print_exc()
         exit(1)

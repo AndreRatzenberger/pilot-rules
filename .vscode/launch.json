@@ -16,6 +16,16 @@
               "--input",
               "${workspaceFolder}/"
             ]
+          },
+          {
+            "name": "Debug collect",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/copilot_toolkit/main.py",
+            "console": "integratedTerminal",
+            "args": [
+              "--collect"
+            ]
           }
     ]
 }

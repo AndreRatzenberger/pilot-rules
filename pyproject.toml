@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "art>=6.4",
     "flock-core>=0.3.23",
     "rich>=13.9.4",
     "tomli>=2.0.1",
