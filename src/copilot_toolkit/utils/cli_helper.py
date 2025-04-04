@@ -11,10 +11,11 @@ except PackageNotFoundError:
 
 console = Console()
 
+
 def init_console(clear_screen: bool = True):
     """Display the Flock banner."""
     banner_text = Text(
-        f"""
+        """
   ___             _  _       _     _____            _  _    _  _
  / __| ___  _ __ (_)| | ___ | |_  |_   _| ___  ___ | || |__(_)| |_
 | (__ / _ \| '_ \| || |/ _ \|  _|   | |  / _ \/ _ \| || / /| ||  _|
@@ -28,7 +29,7 @@ def init_console(clear_screen: bool = True):
     if clear_screen:
         console.clear()
     console.print(banner_text)
-    
+
     console.print(
         f"v{__version__} - [bold]white duck GmbH[/] - [cyan]https://whiteduck.de[/]\n"
     )
@@ -37,7 +38,7 @@ def init_console(clear_screen: bool = True):
 def display_banner_no_version():
     """Display the Flock banner."""
     banner_text = Text(
-        f"""
+        """
 🦆    🐓     🐤     🐧
 ╭━━━━━━━━━━━━━━━━━━━━━━━━╮
 │ ▒█▀▀▀ █░░ █▀▀█ █▀▀ █░█ │
@@ -50,4 +51,4 @@ def display_banner_no_version():
         style="bold orange3",
     )
     console.print(banner_text)
-    console.print(f"[bold]white duck GmbH[/] - [cyan]https://whiteduck.de[/]\n")
+    console.print("[bold]white duck GmbH[/] - [cyan]https://whiteduck.de[/]\n")
