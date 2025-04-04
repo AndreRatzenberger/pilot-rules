@@ -2,7 +2,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 from rich.console import Console
 from rich.syntax import Text
-from art import *
 
 try:
     __version__ = version("copilot-toolkit")
