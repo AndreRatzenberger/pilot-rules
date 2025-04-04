@@ -11,13 +11,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-
-
-class OutputData(BaseModel):
-    name: str = Field(..., description="Name of the output")
-    description: str = Field(..., description="High level description of the data and functionality of the app, as well as design decisions. In beautiful markdown.")
-    output_dictionary_definition: str = Field(..., description="Explanation of the output dictionary and the data it contains")
-    output: dict[str, Any] = Field(..., description="The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.")
+from copilot_toolkit.model import OutputData
     
 
 # Create a console for rich output
@@ -36,7 +30,7 @@ def load_prompt(action: str, prompt_folder:str) -> str:
         console.print(f"[red]Error loading prompt from '{prompt_path}': {e}[/red]")
         raise
 
-def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = False, prompt_folder : str = "prompts") -> dict:
+def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = False, prompt_folder : str = "prompts") -> OutputData:
     """
     Communicate with an LLM agent to perform a specified action.
     
@@ -44,16 +38,12 @@ def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = Fals
         action: The type of action to perform (e.g., "app", "specs")
         input_data: Either file path or raw input data
         input_data_is_file: Whether input_data is a file path
+        prompt_folder: Directory where prompt files are located
         
     Returns:
-        OutputModel instance with the agent's response
+        OutputData instance with the agent's response
     """
-    class OutputDataIntern(BaseModel):
-        name: str = Field(..., description="Name of the output")
-        description: str = Field(..., description="High level description of the data and functionality of the app, as well as design decisions. In beautiful markdown.")
-        output_dictionary_definition: str = Field(..., description="Explanation of the output dictionary and the data it contains")
-        output: dict[str, Any] = Field(..., description="The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.")
-  
+
     MODEL = "gemini/gemini-2.5-pro-exp-03-25" #"groq/qwen-qwq-32b"    #"openai/gpt-4o" # 
     
     # Show which model we're using
@@ -96,14 +86,14 @@ def speak_to_agent(action: str, input_data: str, input_data_is_file: bool = Fals
         
         try:
             # Initialize the Flock
-            flock = Flock(model=MODEL)
+            flock = Flock(model=MODEL,show_flock_banner=False)
             
             # Create the agent
             app_agent = FlockFactory.create_default_agent(
                 name=f"{action}_agent",
                 description=prompt,
                 input="prompt: str, prompt_definition: str, input_data: str",
-                output="output: dict | The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.",
+                output="output: OutputData | The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.",
                 max_tokens=60000,
                 no_output=True
             )

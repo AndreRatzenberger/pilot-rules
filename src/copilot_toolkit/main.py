@@ -20,6 +20,7 @@ from rich.live import Live
 
 from copilot_toolkit import collector
 from copilot_toolkit.agent import speak_to_agent
+from copilot_toolkit.model import OutputData
 from copilot_toolkit.collector.utils import print_header, print_subheader, print_success, print_warning, print_error
 from copilot_toolkit.utils.cli_helper import init_console
 
@@ -317,7 +318,7 @@ def main():
                 if os.path.isdir(file_or_folder):
                     try:
                         collector.run_collection(
-                            include_args=[f"py,md:./{file_or_folder}"],
+                            include_args=[f"py:./{file_or_folder}"],
                             exclude_args=[],
                             output_arg=None,
                             config_arg=None
@@ -347,26 +348,8 @@ def main():
             
             # Display results using the new rendering methods
             console.print("\n")
-            #output.render_summary(console)
-            
-            # Write output files and display them
-            if isinstance(output, dict):
-                files_table = Table(title="Writing Output Files", box=box.ROUNDED)
-                files_table.add_column("File Path", style="cyan")
-                files_table.add_column("Status", style="green")
-                
-                for key, value in output.items():
-                    key = ".project/" + key
-                    try:
-                        # Create the directory if it doesn't exist
-                        Path(key).parent.mkdir(parents=True, exist_ok=True)
-                        with open(key, "w") as f:
-                            f.write(value)
-                        files_table.add_row(key, "[green]✓ Created[/green]")
-                    except Exception as e:
-                        files_table.add_row(key, f"[red]✗ Error: {e}[/red]")
-                
-                console.print(files_table)
+            output.render_summary(console)
+            output.render_output_files(console)
             
             print_success("Specification generation completed")
 

@@ -1,6 +1,6 @@
 [project]
 name = "copilot-toolkit"
-version = "0.2.11"
+version = "0.2.12"
 description = "🚀 A toolkit for coding agents 🚀 Get the most out of GitHub Copilot, Cursor and Co. Powered by flock."
 readme = "README.md"
 authors = [
@@ -8,8 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "art>=6.4",
-    "flock-core>=0.3.23",
+    "flock-core>=0.3.38",
     "rich>=13.9.4",
     "tomli>=2.0.1",
 ]

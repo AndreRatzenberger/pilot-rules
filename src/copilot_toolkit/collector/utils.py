@@ -68,7 +68,7 @@ def print_success(message: str) -> None:
 
 def print_error(message: str, exit_code: Optional[int] = None) -> None:
     """Print an error message and optionally exit."""
-    console.print(f"[bold red]✗ ERROR:[/bold red] {message}", file=console.stderr)
+    console.print(f"[bold red]✗ ERROR:[/bold red] {message}")
     if exit_code is not None:
         exit(exit_code)
 
