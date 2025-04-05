@@ -2,7 +2,7 @@
 """
 Code Collection and Analysis Sub-package.
 Provides functionality to scan repositories, analyze code (primarily Python),
-and generate Markdown summaries.
+and generate Repository objects.
 """
 
 import sys
@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Optional
 from .config import process_config_and_args
 from .discovery import collect_files
 from .analysis import analyze_code_dependencies, get_common_patterns, find_key_files
-from .reporting import generate_markdown
+from .reporting import generate_repository
 from .utils import (
     console,
     print_header,
@@ -23,43 +23,60 @@ from .utils import (
     print_error,
     print_file_stats,
 )
+from ..model import Repository
 
 
 def run_collection(
     include_args: Optional[List[str]],
     exclude_args: Optional[List[str]],
-    output_arg: Optional[str],  # Can be None if default is used by argparse
-    config_arg: Optional[str],
-) -> None:
+    output_arg: Optional[str] = None,  # Kept for backward compatibility but used to save Repository as JSON
+    config_arg: Optional[str] = None,
+    repo_name: Optional[str] = None,
+) -> Repository:
     """
     Main entry point for the code collection process.
 
-    Orchestrates configuration loading, file discovery, analysis, and report generation.
+    Orchestrates configuration loading, file discovery, analysis, and Repository generation.
+    
+    Args:
+        include_args: List of include patterns in format 'ext1,ext2:./folder'
+        exclude_args: List of exclude patterns in format 'py:temp'
+        output_arg: Path to output JSON file to save the repository (optional)
+        config_arg: Path to optional TOML config file
+        repo_name: Name for the repository (default is "Repository Analysis")
+        
+    Returns:
+        Repository object with analyzed code data
     """
     try:
         # 1. Process Configuration and Arguments
-        # This resolves paths and merges CLI/config settings
         print_header("Code Collection Process", "magenta")
-        final_sources, final_excludes, final_output_path = process_config_and_args(
+        final_sources, final_excludes, _ = process_config_and_args(
             include_args=include_args,
             exclude_args=exclude_args,
             output_arg=output_arg,
             config_arg=config_arg,
         )
 
+        # Use provided repo_name or default
+        repository_name = repo_name if repo_name else "Repository Analysis"
+
         # 2. Collect Files based on finalized sources and excludes
-        # Uses glob.glob internally now
         collected_files, actual_extensions = collect_files(
             final_sources, final_excludes
         )
 
         if not collected_files:
             print_warning("No files found matching the specified criteria.")
-            # Generate an empty/minimal report? Or just exit?
-            # Let generate_markdown handle the empty list for now.
+            # Return minimal Repository with empty files list
+            return Repository(
+                name=repository_name,
+                statistics="No files found matching the specified criteria.",
+                project_files=[]
+            )
         else:
             print_success(
-                f"Found [bold green]{len(collected_files)}[/bold green] files to include in the report."
+                f"Found [bold green]{len(collected_files)}[/bold green] files to include in the analysis."
             )
             ext_list = ", ".join(sorted(list(actual_extensions)))
             console.print(f"File extensions found: [cyan]{ext_list}[/cyan]")
@@ -87,27 +104,45 @@ def run_collection(
             # Note: find_key_files now has its own print_subheader call
             key_files = find_key_files(collected_files, dependencies)  # Pass all files
 
-        # 4. Generate Markdown Report
-        # Use '.' as the display root for simplicity in the tree view
-        generate_markdown(
+        # 4. Generate Repository Object
+        repository = generate_repository(
             files=collected_files,
             analyzed_extensions=actual_extensions,
             dependencies=dependencies,
             patterns=patterns,
             key_files=key_files,
-            output_path=final_output_path,
+            repo_name=repository_name,
             root_folder_display=".",  # Or derive from sources if needed
         )
+        
+        # 5. Save Repository as JSON if output_arg is provided
+        if output_arg:
+            import json
+            from pathlib import Path
+            
+            try:
+                # Convert repository to dict and save as JSON
+                repo_dict = repository.dict()
+                output_path = Path(output_arg)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, "w", encoding="utf-8") as f:
+                    json.dump(repo_dict, f, indent=2)
+                print_success(f"Repository data saved to {output_path}")
+            except Exception as e:
+                print_error(f"Error saving repository data: {str(e)}")
+        
+        return repository
 
     except ValueError as e:
         # Configuration or argument parsing errors
         print_error(f"Configuration Error: {e}", 1)
+        raise
     except Exception as e:
         # Catch-all for unexpected errors during collection/analysis/reporting
         print_error(f"An unexpected error occurred: {e}", 1)
         import traceback
-
         traceback.print_exc()
+        raise
 
-
-# __all__ = ['run_collection'] # Optionally define the public API
+# Alias for backward compatibility
+generate_repository_from_files = run_collection

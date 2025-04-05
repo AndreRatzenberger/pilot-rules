@@ -25,20 +25,52 @@ def load_prompt(action: str, prompt_folder: str) -> str:
         raise
 
 
+def extract_before_prompt(text: str) -> str:
+    """
+    Extract all text before '## Prompt' in a given string.
+    
+    Args:
+        text: The input text to process
+        
+    Returns:
+        The text content before '## Prompt' or an empty string if not found
+    """
+    if '## Prompt' in text:
+        return text.split('## Prompt')[0].strip()
+    return text.strip()
+
+
+def extract_after_prompt(text: str) -> str:
+    """
+    Extract all text after '## Prompt' in a given string.
+    
+    Args:
+        text: The input text to process
+        
+    Returns:
+        The text content after '## Prompt' or an empty string if not found
+    """
+    if '## Prompt' in text:
+        return text.split('## Prompt')[1].strip()
+    return ""
+
+
 def speak_to_agent(
     action: str,
     input_data: str,
-    input_data_is_file: bool = False,
     prompt_folder: str = "prompts",
+    user_instructions: str = "",
+    input_type: str = "auto",
 ) -> OutputData:
     """
     Communicate with an LLM agent to perform a specified action.
 
     Args:
         action: The type of action to perform (e.g., "app", "specs")
-        input_data: Either file path or raw input data
-        input_data_is_file: Whether input_data is a file path
+        input_data: Either file path or raw input data (will be detected automatically)
         prompt_folder: Directory where prompt files are located
+        user_instructions: Additional instructions for the agent
+        input_type: Type of input data - "auto", "repository", "markdown", or "raw"
 
     Returns:
         OutputData instance with the agent's response
@@ -51,8 +83,8 @@ def speak_to_agent(
     # Show which model we're using
     console.print(f"[cyan]Using model:[/cyan] [bold magenta]{MODEL}[/bold magenta]")
 
+    prompt_description = ""
     prompt = ""
-    prompt_definition = ""
 
     # Use a spinner for loading prompt files
     with Progress(
@@ -61,15 +93,11 @@ def speak_to_agent(
         load_task = progress.add_task("[blue]Loading prompt files...", total=None)
 
         try:
-            if action == "app":
-                prompt = load_prompt("app", prompt_folder)
-                prompt_definition = load_prompt("app.def", prompt_folder)
-            elif action == "specs":
-                prompt = load_prompt("specs", prompt_folder)
-                prompt_definition = load_prompt("specs.def", prompt_folder)
-            else:
-                prompt = load_prompt(action)
-                prompt_definition = load_prompt(f"{action}.def", prompt_folder)
+            
+            prompt_file = load_prompt(action, prompt_folder)
+            prompt_description = extract_before_prompt(prompt_file)
+            prompt = extract_after_prompt(prompt_file)
+      
 
             progress.update(
                 load_task, description="[green]Prompts loaded successfully!"
@@ -91,10 +119,10 @@ def speak_to_agent(
             # Create the agent
             app_agent = FlockFactory.create_default_agent(
                 name=f"{action}_agent",
-                description=prompt,
-                input="prompt: str, prompt_definition: str, input_data: str",
-                output="output: OutputData | The output dictionary. Usually a dictionary with keys equals paths to files, and values equal the content of the files.",
-                max_tokens=60000,
+                description=prompt_description,
+                input="prompt: str, user_instructions: str, input_data: str, input_type: str",
+                output="output: OutputData",
+                max_tokens=64000,
                 no_output=True,
             )
 
@@ -105,9 +133,35 @@ def speak_to_agent(
             progress.update(setup_task, description=f"[red]Error setting up agent: {e}")
             raise
 
-    # Load input data
+    # Determine input type if auto
+    if input_type == "auto":
+        if isinstance(input_data, str):
+            input_path = Path(input_data)
+            if input_path.is_file():
+                if input_path.suffix.lower() == '.json':
+                    input_type = "repository"
+                elif input_path.suffix.lower() == '.md':
+                    input_type = "markdown"
+                else:
+                    input_type = "raw"
+            else:
+                # If not a file, try to parse as JSON for repository
+                import json
+                try:
+                    json.loads(input_data)
+                    input_type = "repository"
+                except:
+                    input_type = "raw"
+    
+    # Log the input type
+    console.print(f"[cyan]Input type:[/cyan] [bold magenta]{input_type}[/bold magenta]")
+
+    # Load input data - dynamically determine if it's a file path
     input_content = input_data
-    if input_data_is_file:
+    input_path = Path(input_data)
+    
+    # Check if input_data is a valid file path
+    if input_path.is_file():
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold blue]{task.description}"),
@@ -121,7 +175,7 @@ def speak_to_agent(
             try:
                 with open(input_data, "r") as f:
                     input_content = f.read()
-                file_size_kb = Path(input_data).stat().st_size / 1024
+                file_size_kb = input_path.stat().st_size / 1024
                 progress.update(
                     file_task,
                     description=f"[green]Input loaded successfully! ([cyan]{file_size_kb:.1f}[/cyan] KB)",
@@ -131,6 +185,9 @@ def speak_to_agent(
                     file_task, description=f"[red]Error loading input file: {e}"
                 )
                 raise
+    else:
+        # If not a file, treat input_data as raw content
+        console.print(f"[cyan]Using input as raw content...[/cyan]")
 
     # Call the agent with a progress spinner
     with Progress(
@@ -145,8 +202,9 @@ def speak_to_agent(
                 start_agent=app_agent,
                 input={
                     "prompt": prompt,
-                    "prompt_definition": prompt_definition,
+                    "user_instructions": user_instructions,
                     "input_data": input_content,
+                    "input_type": input_type,
                 },
             )
             progress.update(

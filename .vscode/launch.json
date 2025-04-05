@@ -14,9 +14,27 @@
             "args": [
               "--specs",
               "--input",
-              "${workspaceFolder}/",
+              "src/copilot_toolkit/",
               "--prompts",
               "src/copilot_toolkit/prompts",
+            ]
+          },
+          {
+            "name": "Debug app",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/copilot_toolkit/main.py",
+            "console": "integratedTerminal",
+            "args": [
+              "--app",
+              "--input",
+              "local_registry.json",
+              "--prompts",
+              "src/copilot_toolkit/prompts",
+              "--output",
+              ".app/",
+              "--user_instructions",
+              "conversation consists of markdown and code. render markdown as beautiful markdown, code as beautiful code and so on."
             ]
           },
           {

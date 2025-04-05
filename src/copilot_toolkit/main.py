@@ -3,11 +3,12 @@ import os
 import shutil
 import argparse
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 # Third-party imports
 from dotenv import set_key
 import tomli
+import questionary
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -179,6 +180,394 @@ def copy_template(
 # --- Main Application Logic ---
 
 
+def run_interactive_mode(console: Console) -> None:
+    """
+    Run the application in interactive mode, allowing the user to select
+    actions and parameters through questionary prompts.
+    
+    Args:
+        console: The Rich console instance to use for output.
+    """
+    print_header("Interactive Mode", "blue")
+    console.print("[bold]Welcome to the Copilot Toolkit Interactive Mode[/bold]\n")
+    
+    while True:
+        # Main action selection
+        action = questionary.select(
+            "Select an action to perform:",
+            choices=[
+                "collect - Collect code from the repository",
+                "cursor - Scaffold Cursor templates",
+                "copilot - Scaffold Copilot templates",
+                questionary.Separator(),
+                "specs - Create a project specification",
+                "app - Create a standalone webapp based on some data",
+                questionary.Separator(),
+                "set_key - Set the API key for the agent",
+                "exit - Exit interactive mode"
+            ]
+        ).ask()
+        
+        if action is None or action.startswith("exit"):
+            print_success("Exiting interactive mode")
+            return
+        
+        # Extract the action type
+        action_type = action.split(" - ")[0]
+        
+        # Handle different action types
+        if action_type == "collect":
+            run_interactive_collect(console)
+        elif action_type == "specs":
+            run_interactive_specs(console)
+        elif action_type == "app":
+            run_interactive_app(console)
+        elif action_type == "cursor":
+            # Scaffold cursor templates
+            scaffold_root_dir = Path.cwd()
+            guide_file = copy_template("cursor", scaffold_root_dir, console)
+            if guide_file:
+                if questionary.confirm("Would you like to view the guide?").ask():
+                    display_guide(guide_file, console)
+        elif action_type == "copilot":
+            # Scaffold copilot templates
+            scaffold_root_dir = Path.cwd()
+            guide_file = copy_template("copilot", scaffold_root_dir, console)
+            if guide_file:
+                if questionary.confirm("Would you like to view the guide?").ask():
+                    display_guide(guide_file, console)
+        elif action_type == "set_key":
+            key = questionary.password("Enter your API key:").ask()
+            if key:
+                try:
+                    set_key(".env", "GEMINI_API_KEY", key)
+                    print_success("API key set successfully in .env file")
+                except Exception as e:
+                    print_error(f"Error setting API key: {e}")
+        
+        # Ask if the user wants to continue or exit
+        if not questionary.confirm("Would you like to perform another action?", default=True).ask():
+            print_success("Exiting interactive mode")
+            return
+        
+        console.print("\n" + "-" * 80 + "\n")  # Separator between actions
+
+def run_interactive_collect(console: Console) -> None:
+    """
+    Run the code collection in interactive mode.
+    
+    Args:
+        console: The Rich console instance to use for output.
+    """
+    print_header("Code Collection", "cyan")
+    
+    # Get include paths
+    include_args: List[str] = []
+    while True:
+        include_path = questionary.text(
+            "Enter files to include (format: 'ext1,ext2:./folder' or '*:.') or leave empty to finish:",
+            default="py:."
+        ).ask()
+        
+        if not include_path:
+            # If no includes provided and list is empty, add default
+            if not include_args:
+                include_args.append("py:.")
+            break
+        
+        include_args.append(include_path)
+        
+    # Get exclude paths
+    exclude_args: List[str] = []
+    while True:
+        exclude_path = questionary.text(
+            "Enter paths to exclude (format: 'py:temp' or '*:node_modules') or leave empty to finish:"
+        ).ask()
+        
+        if not exclude_path:
+            break
+            
+        exclude_args.append(exclude_path)
+    
+    # Get repo name
+    repo_name = questionary.text(
+        "Name for the repository (leave empty for default 'Repository Analysis'):"
+    ).ask()
+    
+    if not repo_name:
+        repo_name = None
+    
+    # Get config file
+    config_arg = questionary.text(
+        "Path to a .toml configuration file (leave empty for none):"
+    ).ask()
+    
+    if not config_arg:
+        config_arg = None
+    
+    # Confirm the selections
+    console.print("\n[bold]Collection Configuration:[/bold]")
+    console.print(f"[cyan]Include paths:[/cyan] {include_args}")
+    console.print(f"[cyan]Exclude paths:[/cyan] {exclude_args}")
+    console.print(f"[cyan]Repository name:[/cyan] {repo_name or 'Repository Analysis'}")
+    console.print(f"[cyan]Config file:[/cyan] {config_arg or 'None'}")
+    
+    if questionary.confirm("Proceed with collection?").ask():
+        try:
+            repository = collector.run_collection(
+                include_args=include_args,
+                exclude_args=exclude_args,
+                repo_name=repo_name,
+                config_arg=config_arg,
+            )
+            # Display repository using rich rendering methods
+            repository.render_summary(console)
+            repository.render_files(console)
+            print_success("Repository object generated successfully")
+            
+            # Ask if user wants to save the repository to a file
+            if questionary.confirm("Would you like to save the repository data to a file?").ask():
+                from pathlib import Path
+                
+                output_path = questionary.text(
+                    "Enter the output file path (e.g., 'repository_data.json'):",
+                    default="repository_data.json"
+                ).ask()
+                
+                # Use the save_to_json method
+                repository.save_to_json(output_path, console)
+        except Exception as e:
+            print_error(f"Error during collection: {str(e)}")
+
+def run_interactive_specs(console: Console) -> None:
+    """
+    Run the project specifications generation in interactive mode.
+    
+    Args:
+        console: The Rich console instance to use for output.
+    """
+    print_header("Project Specifications Generation", "yellow")
+    
+    # Get input file or folder
+    input_path = questionary.text(
+        "Enter the path to the input file or folder:"
+    ).ask()
+    
+    if not input_path:
+        print_error("Input path is required")
+        return
+    
+    # Get prompt folder path
+    prompts = questionary.text(
+        "Enter the prompt folder path (leave empty for default 'prompts'):"
+    ).ask()
+    
+    if not prompts:
+        prompts = "prompts"
+    
+    # Get user instructions
+    user_instructions = questionary.text(
+        "Enter additional instructions for the agent (leave empty for none):"
+    ).ask()
+    
+    if not user_instructions:
+        user_instructions = ""
+    
+    # Confirm the selections
+    console.print("\n[bold]Specifications Configuration:[/bold]")
+    console.print(f"[yellow]Input path:[/yellow] {input_path}")
+    console.print(f"[yellow]Prompt folder:[/yellow] {prompts}")
+    console.print(f"[yellow]User instructions:[/yellow] {user_instructions or 'None'}")
+    
+    if questionary.confirm("Proceed with specifications generation?").ask():
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold yellow]{task.description}"),
+            console=console
+        ) as progress:
+            collect_task = progress.add_task(
+                "[yellow]Processing input...", total=None
+            )
+            
+            try:
+                # If folder, run collection first to generate Repository object
+                if os.path.isdir(input_path):
+                    # Use the repository generation function
+                    repository = collector.run_collection(
+                        include_args=[f"py:./{input_path}"],
+                        exclude_args=[],
+                        config_arg=None,
+                    )
+                    progress.update(
+                        collect_task,
+                        description="[green]Repository data collected!",
+                    )
+                    
+                    # Display the repository summary and files
+                    console.print("\n[bold]Repository Analysis:[/bold]")
+                    repository.render_summary(console)
+                    
+                    # Ask if the user wants to see the files details
+                    if questionary.confirm("Would you like to view the repository file details?", default=False).ask():
+                        repository.render_files(console)
+                    
+                    # Now generate specs using the repository object directly
+                    generate_task = progress.add_task(
+                        "[yellow]Generating specifications...", total=None
+                    )
+                    
+                    # Convert repository to JSON string for the agent to use
+                    import json
+                    repository_json = json.dumps(repository.dict())
+                    
+                    # Use the repository object with the agent
+                    output = speak_to_agent(
+                        action="specs", 
+                        input_data=repository_json, 
+                        prompt_folder=prompts, 
+                        user_instructions=user_instructions,
+                        input_type="repository"  # Add a flag to indicate this is a repository object
+                    )
+                    
+                    progress.update(
+                        generate_task,
+                        description="[green]Specifications generated successfully!",
+                    )
+                
+                # If file, use it directly (assuming it's a JSON repository data file)
+                elif os.path.isfile(input_path):
+                    generate_task = progress.add_task(
+                        "[yellow]Generating specifications from file...", total=None
+                    )
+                    
+                    # We assume JSON files contain repository data
+                    input_type = "repository" 
+                    
+                    # If it's a repository JSON file, display it first
+                    try:
+                        import json
+                        with open(input_path, 'r') as file:
+                            repo_data = json.load(file)
+                            from copilot_toolkit.model import Repository
+                            repository = Repository.parse_obj(repo_data)
+                            
+                            # Display the repository summary
+                            console.print("\n[bold]Repository from file:[/bold]")
+                            repository.render_summary(console)
+                            
+                            # Ask if the user wants to see the files details
+                            if questionary.confirm("Would you like to view the repository file details?", default=False).ask():
+                                repository.render_files(console)
+                    except Exception as e:
+                        print_warning(f"Could not parse repository data from file: {e}")
+                    
+                    output = speak_to_agent(
+                        action="specs", 
+                        input_data=input_path, 
+                        prompt_folder=prompts, 
+                        user_instructions=user_instructions,
+                        input_type=input_type
+                    )
+                    progress.update(
+                        generate_task,
+                        description="[green]Specifications generated successfully!",
+                    )
+                else:
+                    progress.update(collect_task, description="[red]Invalid input path")
+                    raise ValueError(
+                        f"Input path is neither a file nor a directory: {input_path}"
+                    )
+                
+                # Display results
+                console.print("\n")
+                output.render_summary(console)
+                output.render_output_files(console)
+                
+                print_success("Specification generation completed")
+            except Exception as e:
+                progress.update(
+                    collect_task,
+                    description=f"[red]Error: {e}",
+                )
+                print_error(f"Error during specifications generation: {str(e)}")
+
+def run_interactive_app(console: Console) -> None:
+    """
+    Run the app creation in interactive mode.
+    
+    Args:
+        console: The Rich console instance to use for output.
+    """
+    print_header("App Creation", "magenta")
+    
+    # Get input file
+    input_file = questionary.text(
+        "Enter the path to the input file:"
+    ).ask()
+    
+    if not input_file:
+        print_error("Input file is required")
+        return
+    
+    # Get output path
+    output_path = questionary.text(
+        "Enter the output path (leave empty for default):"
+    ).ask()
+    
+    if not output_path:
+        output_path = None
+    
+    # Get prompt folder path
+    prompts = questionary.text(
+        "Enter the prompt folder path (leave empty for default 'prompts'):"
+    ).ask()
+    
+    if not prompts:
+        prompts = "prompts"
+    
+    # Get user instructions
+    user_instructions = questionary.text(
+        "Enter additional instructions for the agent (leave empty for none):"
+    ).ask()
+    
+    if not user_instructions:
+        user_instructions = ""
+    
+    # Confirm the selections
+    console.print("\n[bold]App Creation Configuration:[/bold]")
+    console.print(f"[magenta]Input file:[/magenta] {input_file}")
+    console.print(f"[magenta]Output path:[/magenta] {output_path or 'Default'}")
+    console.print(f"[magenta]Prompt folder:[/magenta] {prompts}")
+    console.print(f"[magenta]User instructions:[/magenta] {user_instructions or 'None'}")
+    
+    if questionary.confirm("Proceed with app creation?").ask():
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold magenta]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("[magenta]Creating app...", total=None)
+            
+            try:
+                output = speak_to_agent(
+                    action="app", 
+                    input_data=input_file, 
+                    prompt_folder=prompts, 
+                    user_instructions=user_instructions
+                )
+                progress.update(
+                    task, description="[green]App created successfully!"
+                )
+                
+                # Use the rendering methods instead of direct printing
+                console.print("\n")
+                output.render_summary(console)
+                output.render_output_files(console)
+                print_success("App creation process completed")
+            except Exception as e:
+                progress.update(task, description=f"[red]Error creating app: {e}")
+                print_error(f"Error during app creation: {str(e)}")
+
 def main():
     """
     Entry point for the pilot-rules CLI application.
@@ -228,6 +617,17 @@ def main():
         "--set_key", metavar="KEY", help="Set the API key for the agent"
     )
 
+    argument_group = parser.add_argument_group(
+        "Additional Options"
+    )
+    argument_group.add_argument(
+        "--user_instructions",
+        help="Additional instructions to pass to the agent"
+    )
+    argument_group.add_argument(
+        "--prompts",
+        help="Path to the folder containing prompt files (default: 'prompts')"
+    )
     # --- Options for Code Collection ---
     collect_group = parser.add_argument_group(
         "Code Collection Options (used with --collect)"
@@ -248,26 +648,27 @@ def main():
     )
     collect_group.add_argument(
         "--output",
-        default=None,  # Default is handled inside the collector logic now
+        default=None,
         metavar="FILEPATH",
-        help=f"Path to the output Markdown file (default: '{collector.config.DEFAULT_OUTPUT_FILENAME}')",
+        help="Path to save the output JSON file with repository data",
     )
     collect_group.add_argument(
         "--input",
-        default=None,  # Default is handled inside the collector logic now
+        default=None,
         metavar="FILEPATH",
         help="Path to the input file or folder",
     )
-    collect_group.add_argument(
-        "--prompts",
-        default=None,  # Default is handled inside the collector logic now
-        metavar="FILEPATH",
-        help="Path to the promtp folder",
-    )
+    
     collect_group.add_argument(
         "--config",
         metavar="TOML_FILE",
         help="Path to a .toml configuration file for collection settings.",
+    )
+    
+    collect_group.add_argument(
+        "--repo-name",
+        metavar="NAME",
+        help="Name for the repository",
     )
 
     args = parser.parse_args()
@@ -277,17 +678,24 @@ def main():
     guide_file_to_display: Optional[Path] = None
 
     try:
-        if args.collect:
+        if args.interactive:
+            run_interactive_mode(console)
+        elif args.collect:
             print_header("Code Collection Mode", "cyan")
-            # --- Call the refactored collector function ---
-            # Errors within the collector (ValueError, etc.) will be caught below
-            collector.run_collection(
+            
+            # Generate a Repository object
+            repository = collector.run_collection(
                 include_args=args.include,
                 exclude_args=args.exclude,
-                output_arg=args.output,  # Pass CLI arg (can be None)
+                output_arg=args.output,
                 config_arg=args.config,
+                repo_name=args.repo_name,
             )
-            print_success("Code collection process completed successfully")
+            
+            # Display repository using rich rendering methods
+            repository.render_summary(console)
+            repository.render_files(console)
+            print_success("Repository analysis completed successfully")
 
         elif args.cursor:
             guide_file_to_display = copy_template("cursor", scaffold_root_dir, console)
@@ -300,6 +708,10 @@ def main():
         elif args.app:
             print_header("App Creation Mode", "magenta")
 
+            # Set defaults for prompts and user_instructions if not provided
+            prompt_folder = args.prompts if args.prompts else "prompts"
+            user_instructions = args.user_instructions if args.user_instructions else ""
+
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[bold magenta]{task.description}"),
@@ -307,12 +719,17 @@ def main():
             ) as progress:
                 task = progress.add_task("[magenta]Creating app...", total=None)
                 try:
-                    output = speak_to_agent("app", args.input, True)
+                    output = speak_to_agent(
+                        action="app", 
+                        input_data=args.input, 
+                        prompt_folder=prompt_folder, 
+                        user_instructions=user_instructions
+                    )
                     progress.update(
                         task, description="[green]App created successfully!"
                     )
 
-                    # Use the new rendering methods instead of direct printing
+                    # Use the rendering methods instead of direct printing
                     console.print("\n")
                     output.render_summary(console)
                     output.render_output_files(console)
@@ -324,6 +741,10 @@ def main():
         elif args.specs:
             file_or_folder = args.input
             print_header("Project Specifications Generation", "yellow")
+
+            # Set defaults for prompts and user_instructions if not provided
+            prompt_folder = args.prompts if args.prompts else "prompts"
+            user_instructions = args.user_instructions if args.user_instructions else ""
 
             with Progress(
                 SpinnerColumn(),
@@ -337,10 +758,9 @@ def main():
                 # If folder, run collection first
                 if os.path.isdir(file_or_folder):
                     try:
-                        collector.run_collection(
+                        repository = collector.run_collection(
                             include_args=[f"py:./{file_or_folder}"],
                             exclude_args=[],
-                            output_arg=None,
                             config_arg=None,
                         )
                         progress.update(
@@ -348,12 +768,25 @@ def main():
                             description="[green]Repository data collected!",
                         )
 
-                        # Now generate specs from the analysis
+                        # Display repository
+                        console.print("\n")
+                        repository.render_summary(console)
+
+                        # Now generate specs from the repository
                         generate_task = progress.add_task(
                             "[yellow]Generating specifications...", total=None
                         )
+                        
+                        # Convert repository to JSON
+                        import json
+                        repository_json = json.dumps(repository.dict())
+                        
                         output = speak_to_agent(
-                            "specs", "repository_analysis.md", True, args.prompts
+                            action="specs", 
+                            input_data=repository_json, 
+                            prompt_folder=prompt_folder, 
+                            user_instructions=user_instructions,
+                            input_type="repository"
                         )
                         progress.update(
                             generate_task,
@@ -366,13 +799,20 @@ def main():
                         )
                         raise
 
-                # If file, use it directly
+                # If file, use it directly as repository JSON
                 elif os.path.isfile(file_or_folder):
                     try:
                         generate_task = progress.add_task(
                             "[yellow]Generating specifications from file...", total=None
                         )
-                        output = speak_to_agent("specs", file_or_folder, True)
+                        
+                        output = speak_to_agent(
+                            action="specs", 
+                            input_data=file_or_folder, 
+                            prompt_folder=prompt_folder,
+                            user_instructions=user_instructions,
+                            input_type="repository"
+                        )
                         progress.update(
                             generate_task,
                             description="[green]Specifications generated successfully!",
@@ -389,7 +829,7 @@ def main():
                         f"Input path is neither a file nor a directory: {file_or_folder}"
                     )
 
-            # Display results using the new rendering methods
+            # Display results using the rendering methods
             console.print("\n")
             output.render_summary(console)
             output.render_output_files(console)

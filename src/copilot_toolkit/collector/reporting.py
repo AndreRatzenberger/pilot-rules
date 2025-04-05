@@ -13,6 +13,7 @@ from .utils import (
     print_error,
 )
 from .analysis import extract_python_components  # Import needed analysis functions
+from ..model import Repository, ProjectFile, ProjectCodeFile
 
 
 # --- Folder Tree Generation ---
@@ -253,6 +254,51 @@ def generate_markdown(
                     md_file.write(f"Error reading file: {e}\n")
                 md_file.write("```\n\n")
 
+        # --- Other Markdown Files Section ---
+        md_file.write("## Other Files\n\n")
+        md_file.write("This section includes content of all other analyzed files that aren't in the key files list.\n\n")
+        
+        # Filter out key files
+        other_files = [f for f in files if f not in key_files]
+        
+        if other_files:
+            for file_abs_path in other_files:
+                try:
+                    rel_path = str(Path(file_abs_path).relative_to(report_base_path))
+                except ValueError:
+                    rel_path = file_abs_path  # Fallback to absolute if not relative
+
+                md_file.write(f"### {rel_path}\n\n")
+                metadata = get_file_metadata(file_abs_path)
+                md_file.write(f"- **Lines**: {metadata.get('line_count', 'N/A')}\n")
+                md_file.write(
+                    f"- **Size**: {metadata.get('size_bytes', 0) / 1024:.2f} KB\n"
+                )
+                md_file.write(
+                    f"- **Last modified**: {metadata.get('last_modified', 'Unknown')}\n"
+                )
+
+                # Include full file content
+                md_file.write("\n**Content**:\n")
+                file_ext = Path(file_abs_path).suffix.lower()
+                lang_hint = file_ext.lstrip(".") if file_ext else ""
+                md_file.write(f"```{lang_hint}\n")
+                try:
+                    with open(
+                        file_abs_path, "r", encoding="utf-8", errors="ignore"
+                    ) as code_file:
+                        # Read the entire file content
+                        full_content = code_file.read()
+                        md_file.write(full_content)
+                        # Ensure a newline at the end of the code block if file doesn't have one
+                        if not full_content.endswith("\n"):
+                            md_file.write("\n")
+                except Exception as e:
+                    md_file.write(f"Error reading file: {e}\n")
+                md_file.write("```\n\n")
+        else:
+            md_file.write("No additional files found.\n\n")
+
         # --- Python Dependency Analysis (if applicable) ---
         if has_python_files and dependencies:
             md_file.write("## Python Dependencies\n\n")
@@ -332,3 +378,120 @@ def generate_markdown(
 
     # Final success message
     print_success(f"Markdown report generated successfully at '{output_path}'")
+
+
+# --- Repository Object Generation ---
+def generate_repository(
+    files: List[str],  # List of absolute paths
+    analyzed_extensions: Set[str],  # Set of actual extensions found (e.g., '.py', '.js')
+    dependencies: Dict[str, Set[str]],  # Python dependencies
+    patterns: Dict[str, Any],  # Detected patterns
+    key_files: List[str],  # List of absolute paths for key files
+    repo_name: str = "Repository Analysis",
+    root_folder_display: str = ".",  # How to display the root in summary/tree
+) -> Repository:
+    """Generate a Repository object with analyzed code structure and content."""
+    print_header("Generating Repository Object", "green")
+    report_base_path = Path.cwd()  # Use CWD as the base for relative paths in the report
+
+    has_python_files = ".py" in analyzed_extensions
+
+    # Generate statistics
+    ext_list_str = ", ".join(sorted(list(analyzed_extensions))) if analyzed_extensions else "N/A"
+    total_files = len(files)
+    
+    total_lines = 0
+    if files:
+        try:
+            total_lines = sum(get_file_metadata(f).get("line_count", 0) for f in files)
+        except Exception as e:
+            print_warning(f"Could not calculate total lines accurately: {e}")
+            total_lines = 0
+    
+    statistics = f"""
+- Extensions analyzed: {ext_list_str}
+- Number of files analyzed: {total_files}
+- Total lines of code (approx): {total_lines}
+"""
+
+    # Process files to create ProjectFile objects
+    project_files = []
+    
+    # First create a mapping of absolute paths to file_ids
+    file_id_mapping = {}
+    for i, file_abs_path in enumerate(files):
+        try:
+            rel_path = str(Path(file_abs_path).relative_to(report_base_path))
+        except ValueError:
+            rel_path = file_abs_path  # Fallback to absolute if not relative
+        
+        file_id = f"file_{i}"
+        file_id_mapping[file_abs_path] = file_id
+    
+    # Now create ProjectFile objects with proper dependencies
+    for file_abs_path in files:
+        try:
+            rel_path = str(Path(file_abs_path).relative_to(report_base_path))
+        except ValueError:
+            rel_path = file_abs_path  # Fallback to absolute if not relative
+            
+        metadata = get_file_metadata(file_abs_path)
+        file_id = file_id_mapping[file_abs_path]
+        
+        try:
+            with open(file_abs_path, "r", encoding="utf-8", errors="ignore") as code_file:
+                content = code_file.read()
+        except Exception as e:
+            print_warning(f"Could not read file content for {rel_path}: {e}")
+            content = f"Error reading file: {str(e)}"
+        
+        # Generate description based on file type
+        description = f"File at {rel_path}"
+        if file_abs_path.lower().endswith(".py"):
+            components = extract_python_components(file_abs_path)
+            if components.get("docstring"):
+                docstring_summary = components["docstring"].strip().split("\n", 1)[0][:150]
+                description = docstring_summary + ('...' if len(components["docstring"]) > 150 else '')
+            
+            # For Python files, create ProjectCodeFile with dependencies
+            file_deps = []
+            file_used_by = []
+            
+            # Find dependencies
+            if has_python_files and file_abs_path in dependencies:
+                file_deps = [file_id_mapping[dep] for dep in dependencies[file_abs_path] if dep in file_id_mapping]
+                
+                # Find files that depend on this file
+                dependent_files_abs = {f for f, deps in dependencies.items() if file_abs_path in deps}
+                file_used_by = [file_id_mapping[dep] for dep in dependent_files_abs if dep in file_id_mapping]
+            
+            project_file = ProjectCodeFile(
+                file_id=file_id,
+                description=description,
+                file_path=rel_path,
+                content=content,
+                line_count=metadata.get('line_count', 0),
+                dependencies=file_deps,
+                used_by=file_used_by
+            )
+        else:
+            # Regular ProjectFile for non-Python files
+            project_file = ProjectFile(
+                file_id=file_id,
+                description=description,
+                file_path=rel_path,
+                content=content,
+                line_count=metadata.get('line_count', 0)
+            )
+        
+        project_files.append(project_file)
+    
+    # Create and return the Repository object
+    repository = Repository(
+        name=repo_name,
+        statistics=statistics,
+        project_files=project_files
+    )
+    
+    print_success(f"Successfully generated Repository object with {len(project_files)} files")
+    return repository

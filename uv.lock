@@ -665,6 +665,7 @@ version = "0.2.12"
 source = { editable = "." }
 dependencies = [
     { name = "flock-core" },
+    { name = "questionary" },
     { name = "rich" },
     { name = "tomli" },
 ]
@@ -672,6 +673,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "flock-core", specifier = ">=0.3.38" },
+    { name = "questionary", specifier = ">=2.1.0" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "tomli", specifier = ">=2.0.1" },
 ]
