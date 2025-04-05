@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "flock-core>=0.3.38",
     "questionary>=2.1.0",
+    "radon>=6.0.1",
     "rich>=13.9.4",
     "tomli>=2.0.1",
 ]

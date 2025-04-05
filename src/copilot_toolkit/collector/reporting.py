@@ -11,8 +11,10 @@ from .utils import (
     print_success,
     print_warning,
     print_error,
+    print_subheader,
 )
 from .analysis import extract_python_components  # Import needed analysis functions
+from .metrics import calculate_file_metrics  # Import the new metrics module
 from ..model import Repository, ProjectFile, ProjectCodeFile
 
 
@@ -428,6 +430,64 @@ def generate_repository(
         file_id = f"file_{i}"
         file_id_mapping[file_abs_path] = file_id
     
+    # Pre-calculate metrics for Python files to include in statistics
+    python_files = [f for f in files if f.lower().endswith('.py')]
+    metrics_by_file = {}
+    
+    if python_files:
+        print_subheader("Calculating Code Quality Metrics", "blue")
+        
+        # Track overall metrics
+        total_complexity = 0
+        files_with_complexity = 0
+        total_maintainability = 0
+        files_with_maintainability = 0
+        complexity_ranks = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+        maintainability_ranks = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+        total_code_smells = 0
+        
+        # Calculate metrics for each Python file
+        for file_path in python_files:
+            metrics = calculate_file_metrics(file_path)
+            metrics_by_file[file_path] = metrics
+            
+            # Aggregate statistics
+            cc = metrics.get("cyclomatic_complexity", {})
+            if cc and "total" in cc:
+                total_complexity += cc["total"]
+                files_with_complexity += 1
+                if "rank" in cc:
+                    complexity_ranks[cc["rank"]] = complexity_ranks.get(cc["rank"], 0) + 1
+            
+            mi = metrics.get("maintainability_index", {})
+            if mi and "value" in mi:
+                total_maintainability += mi["value"]
+                files_with_maintainability += 1
+                if "rank" in mi:
+                    maintainability_ranks[mi["rank"]] = maintainability_ranks.get(mi["rank"], 0) + 1
+            
+            smells = metrics.get("code_smells", [])
+            total_code_smells += len(smells)
+        
+        # Add code quality metrics to statistics
+        avg_complexity = total_complexity / files_with_complexity if files_with_complexity > 0 else 0
+        avg_maintainability = total_maintainability / files_with_maintainability if files_with_maintainability > 0 else 0
+        
+        complexity_distribution = ", ".join([f"{rank}: {count}" for rank, count in complexity_ranks.items() if count > 0])
+        maintainability_distribution = ", ".join([f"{rank}: {count}" for rank, count in maintainability_ranks.items() if count > 0])
+        
+        quality_stats = f"""
+- Average cyclomatic complexity: {avg_complexity:.2f}
+- Complexity distribution: {complexity_distribution}
+- Average maintainability index: {avg_maintainability:.2f}
+- Maintainability distribution: {maintainability_distribution}
+- Total code smells detected: {total_code_smells}
+"""
+        
+        # Add code quality metrics to main statistics if metrics were calculated
+        if files_with_complexity > 0 or files_with_maintainability > 0:
+            statistics += quality_stats
+
     # Now create ProjectFile objects with proper dependencies
     for file_abs_path in files:
         try:
@@ -465,6 +525,11 @@ def generate_repository(
                 dependent_files_abs = {f for f, deps in dependencies.items() if file_abs_path in deps}
                 file_used_by = [file_id_mapping[dep] for dep in dependent_files_abs if dep in file_id_mapping]
             
+            # Use pre-calculated metrics if available, otherwise calculate them now
+            complexity_metrics = metrics_by_file.get(file_abs_path, {})
+            if not complexity_metrics:
+                complexity_metrics = calculate_file_metrics(file_abs_path)
+            
             project_file = ProjectCodeFile(
                 file_id=file_id,
                 description=description,
@@ -472,7 +537,8 @@ def generate_repository(
                 content=content,
                 line_count=metadata.get('line_count', 0),
                 dependencies=file_deps,
-                used_by=file_used_by
+                used_by=file_used_by,
+                complexity_metrics=complexity_metrics
             )
         else:
             # Regular ProjectFile for non-Python files

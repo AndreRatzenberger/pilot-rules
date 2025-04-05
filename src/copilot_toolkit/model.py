@@ -106,6 +106,7 @@ class ProjectFile(BaseModel):
 class ProjectCodeFile(ProjectFile):
     dependencies: list[str] = Field(..., description="List of file ids that must be created before this one")
     used_by: list[str] = Field(..., description="List of file ids that depend on this one")
+    complexity_metrics: dict[str, Any] = Field(default_factory=dict, description="Code quality and complexity metrics")
 
 
 @flock_type
@@ -157,21 +158,40 @@ class Repository(BaseModel):
         files_table.add_column("Path", style="magenta")
         files_table.add_column("Lines", style="green")
         files_table.add_column("Type", style="yellow")
+        files_table.add_column("Complexity", style="red")
+        files_table.add_column("Maintainability", style="blue")
         
         # Add files to the table (limited to max_files)
         for file in self.project_files[:max_files]:
             file_type = "Code File" if isinstance(file, ProjectCodeFile) else "File"
+            
+            complexity = "-"
+            maintainability = "-"
+            if isinstance(file, ProjectCodeFile) and file.complexity_metrics:
+                cc = file.complexity_metrics.get("cyclomatic_complexity", {})
+                mi = file.complexity_metrics.get("maintainability_index", {})
+                
+                if cc and "rank" in cc:
+                    complexity = f"{cc.get('total', '?')} ({cc.get('rank', '?')})"
+                
+                if mi and "rank" in mi:
+                    maintainability = f"{int(mi.get('value', 0))} ({mi.get('rank', '?')})"
+            
             files_table.add_row(
                 file.file_id,
                 file.file_path,
                 str(file.line_count),
-                file_type
+                file_type,
+                complexity,
+                maintainability
             )
         
         if len(self.project_files) > max_files:
             files_table.add_row(
                 "...",
                 f"[yellow]And {len(self.project_files) - max_files} more files...[/yellow]",
+                "",
+                "",
                 "",
                 ""
             )
@@ -220,6 +240,71 @@ class Repository(BaseModel):
                 )
                 
             console.print(deps_table)
+            
+            # New Code Metrics Table
+            files_with_metrics = [f for f in code_files if isinstance(f, ProjectCodeFile) and f.complexity_metrics]
+            if files_with_metrics:
+                console.print("\n")
+                console.rule("[bold cyan]Code Quality Metrics")
+                console.print("\n")
+                
+                metrics_table = Table(title="Code Complexity and Quality", box=box.ROUNDED)
+                metrics_table.add_column("File", style="cyan")
+                metrics_table.add_column("Cyclomatic Complexity", style="red")
+                metrics_table.add_column("Maintainability", style="blue")
+                metrics_table.add_column("Code Smells", style="yellow")
+                
+                for file in files_with_metrics[:max(10, max_files // 2)]:
+                    metrics = file.complexity_metrics
+                    cc = metrics.get("cyclomatic_complexity", {})
+                    mi = metrics.get("maintainability_index", {})
+                    smells = metrics.get("code_smells", [])
+                    
+                    cc_display = "[grey]-[/grey]"
+                    if cc:
+                        rank = cc.get("rank", "?")
+                        rank_color = {
+                            "A": "green", "B": "green",
+                            "C": "yellow", "D": "red",
+                            "F": "red bold"
+                        }.get(rank, "white")
+                        cc_display = f"Total: {cc.get('total', '?')} | Avg: {cc.get('average', '?')} | Rank: [{rank_color}]{rank}[/{rank_color}]"
+                    
+                    mi_display = "[grey]-[/grey]"
+                    if mi:
+                        rank = mi.get("rank", "?")
+                        rank_color = {
+                            "A": "green", "B": "green",
+                            "C": "yellow", "D": "red",
+                            "F": "red bold"
+                        }.get(rank, "white")
+                        mi_display = f"Index: {int(mi.get('value', 0))} | Rank: [{rank_color}]{rank}[/{rank_color}]"
+                    
+                    smells_display = "[grey]None detected[/grey]"
+                    if smells:
+                        smells_list = []
+                        for i, smell in enumerate(smells[:3]):  # Show up to 3 smells
+                            smells_list.append(f"{smell['type']} in {smell['location']}")
+                        if len(smells) > 3:
+                            smells_list.append(f"...and {len(smells) - 3} more")
+                        smells_display = "\n".join(smells_list)
+                    
+                    metrics_table.add_row(
+                        file.file_path,
+                        cc_display,
+                        mi_display,
+                        smells_display
+                    )
+                
+                if len(files_with_metrics) > max(10, max_files // 2):
+                    metrics_table.add_row(
+                        "[yellow]And more files...[/yellow]",
+                        "",
+                        "",
+                        ""
+                    )
+                    
+                console.print(metrics_table)
         
         console.rule("[bold cyan]End of Repository")
     
