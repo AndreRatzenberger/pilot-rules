@@ -58,9 +58,7 @@ def extract_after_prompt(text: str) -> str:
 def speak_to_agent(
     action: str,
     input_data: str,
-    prompt_folder: str = "prompts",
     user_instructions: str = "",
-    input_type: str = "auto",
 ) -> OutputData:
     """
     Communicate with an LLM agent to perform a specified action.
@@ -70,7 +68,6 @@ def speak_to_agent(
         input_data: Either file path or raw input data (will be detected automatically)
         prompt_folder: Directory where prompt files are located
         user_instructions: Additional instructions for the agent
-        input_type: Type of input data - "auto", "repository", "markdown", or "raw"
 
     Returns:
         OutputData instance with the agent's response
@@ -79,6 +76,9 @@ def speak_to_agent(
     MODEL = (
         "gemini/gemini-2.5-pro-exp-03-25"  # "groq/qwen-qwq-32b"    #"openai/gpt-4o" #
     )
+
+    # load a file relative to the current file
+    prompt_folder = Path(__file__).parent / "prompts"
 
     # Show which model we're using
     console.print(f"[cyan]Using model:[/cyan] [bold magenta]{MODEL}[/bold magenta]")
@@ -120,7 +120,7 @@ def speak_to_agent(
             app_agent = FlockFactory.create_default_agent(
                 name=f"{action}_agent",
                 description=prompt_description,
-                input="prompt: str, user_instructions: str, input_data: str, input_type: str",
+                input="prompt: str, user_instructions: str, input_data: str",
                 output="output: OutputData",
                 max_tokens=64000,
                 no_output=True,
@@ -133,28 +133,6 @@ def speak_to_agent(
             progress.update(setup_task, description=f"[red]Error setting up agent: {e}")
             raise
 
-    # Determine input type if auto
-    if input_type == "auto":
-        if isinstance(input_data, str):
-            input_path = Path(input_data)
-            if input_path.is_file():
-                if input_path.suffix.lower() == '.json':
-                    input_type = "repository"
-                elif input_path.suffix.lower() == '.md':
-                    input_type = "markdown"
-                else:
-                    input_type = "raw"
-            else:
-                # If not a file, try to parse as JSON for repository
-                import json
-                try:
-                    json.loads(input_data)
-                    input_type = "repository"
-                except:
-                    input_type = "raw"
-    
-    # Log the input type
-    console.print(f"[cyan]Input type:[/cyan] [bold magenta]{input_type}[/bold magenta]")
 
     # Load input data - dynamically determine if it's a file path
     input_content = input_data
@@ -204,7 +182,6 @@ def speak_to_agent(
                     "prompt": prompt,
                     "user_instructions": user_instructions,
                     "input_data": input_content,
-                    "input_type": input_type,
                 },
             )
             progress.update(

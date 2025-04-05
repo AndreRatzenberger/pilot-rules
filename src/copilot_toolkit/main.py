@@ -257,7 +257,7 @@ def run_interactive_collect(console: Console) -> None:
     Run the code collection in interactive mode.
     
     Args:
-        console: The Rich console instance to use for output.
+        console: The Rich console instance to use for output
     """
     print_header("Code Collection", "cyan")
     
@@ -305,12 +305,19 @@ def run_interactive_collect(console: Console) -> None:
     if not config_arg:
         config_arg = None
     
+    # Ask about metrics calculation
+    calculate_metrics = questionary.confirm(
+        "Would you like to calculate code quality metrics?",
+        default=False
+    ).ask()
+    
     # Confirm the selections
     console.print("\n[bold]Collection Configuration:[/bold]")
     console.print(f"[cyan]Include paths:[/cyan] {include_args}")
     console.print(f"[cyan]Exclude paths:[/cyan] {exclude_args}")
     console.print(f"[cyan]Repository name:[/cyan] {repo_name or 'Repository Analysis'}")
     console.print(f"[cyan]Config file:[/cyan] {config_arg or 'None'}")
+    console.print(f"[cyan]Calculate metrics:[/cyan] {'Yes' if calculate_metrics else 'No'}")
     
     if questionary.confirm("Proceed with collection?").ask():
         try:
@@ -319,6 +326,7 @@ def run_interactive_collect(console: Console) -> None:
                 exclude_args=exclude_args,
                 repo_name=repo_name,
                 config_arg=config_arg,
+                calculate_metrics=calculate_metrics,
             )
             # Display repository using rich rendering methods
             repository.render_summary(console)
@@ -349,7 +357,7 @@ def run_interactive_specs(console: Console) -> None:
     print_header("Project Specifications Generation", "yellow")
     
     # Get input file or folder
-    input_path = questionary.text(
+    input_path = questionary.path(
         "Enter the path to the input file or folder:"
     ).ask()
     
@@ -357,13 +365,6 @@ def run_interactive_specs(console: Console) -> None:
         print_error("Input path is required")
         return
     
-    # Get prompt folder path
-    prompts = questionary.text(
-        "Enter the prompt folder path (leave empty for default 'prompts'):"
-    ).ask()
-    
-    if not prompts:
-        prompts = "prompts"
     
     # Get user instructions
     user_instructions = questionary.text(
@@ -376,7 +377,6 @@ def run_interactive_specs(console: Console) -> None:
     # Confirm the selections
     console.print("\n[bold]Specifications Configuration:[/bold]")
     console.print(f"[yellow]Input path:[/yellow] {input_path}")
-    console.print(f"[yellow]Prompt folder:[/yellow] {prompts}")
     console.print(f"[yellow]User instructions:[/yellow] {user_instructions or 'None'}")
     
     if questionary.confirm("Proceed with specifications generation?").ask():
@@ -397,6 +397,7 @@ def run_interactive_specs(console: Console) -> None:
                         include_args=[f"py:./{input_path}"],
                         exclude_args=[],
                         config_arg=None,
+                        calculate_metrics=False,  # Don't calculate metrics for specs generation
                     )
                     progress.update(
                         collect_task,
@@ -424,9 +425,7 @@ def run_interactive_specs(console: Console) -> None:
                     output = speak_to_agent(
                         action="specs", 
                         input_data=repository_json, 
-                        prompt_folder=prompts, 
                         user_instructions=user_instructions,
-                        input_type="repository"  # Add a flag to indicate this is a repository object
                     )
                     
                     progress.update(
@@ -441,7 +440,6 @@ def run_interactive_specs(console: Console) -> None:
                     )
                     
                     # We assume JSON files contain repository data
-                    input_type = "repository" 
                     
                     # If it's a repository JSON file, display it first
                     try:
@@ -464,9 +462,7 @@ def run_interactive_specs(console: Console) -> None:
                     output = speak_to_agent(
                         action="specs", 
                         input_data=input_path, 
-                        prompt_folder=prompts, 
                         user_instructions=user_instructions,
-                        input_type=input_type
                     )
                     progress.update(
                         generate_task,
@@ -501,7 +497,7 @@ def run_interactive_app(console: Console) -> None:
     print_header("App Creation", "magenta")
     
     # Get input file
-    input_file = questionary.text(
+    input_file = questionary.path(
         "Enter the path to the input file:"
     ).ask()
     
@@ -517,14 +513,7 @@ def run_interactive_app(console: Console) -> None:
     if not output_path:
         output_path = None
     
-    # Get prompt folder path
-    prompts = questionary.text(
-        "Enter the prompt folder path (leave empty for default 'prompts'):"
-    ).ask()
-    
-    if not prompts:
-        prompts = "prompts"
-    
+
     # Get user instructions
     user_instructions = questionary.text(
         "Enter additional instructions for the agent (leave empty for none):"
@@ -537,7 +526,6 @@ def run_interactive_app(console: Console) -> None:
     console.print("\n[bold]App Creation Configuration:[/bold]")
     console.print(f"[magenta]Input file:[/magenta] {input_file}")
     console.print(f"[magenta]Output path:[/magenta] {output_path or 'Default'}")
-    console.print(f"[magenta]Prompt folder:[/magenta] {prompts}")
     console.print(f"[magenta]User instructions:[/magenta] {user_instructions or 'None'}")
     
     if questionary.confirm("Proceed with app creation?").ask():
@@ -552,8 +540,7 @@ def run_interactive_app(console: Console) -> None:
                 output = speak_to_agent(
                     action="app", 
                     input_data=input_file, 
-                    prompt_folder=prompts, 
-                    user_instructions=user_instructions
+                    user_instructions=user_instructions,
                 )
                 progress.update(
                     task, description="[green]App created successfully!"
@@ -671,6 +658,12 @@ def main():
         help="Name for the repository",
     )
 
+    collect_group.add_argument(
+        "--metrics",
+        action="store_true",
+        help="Calculate code quality metrics (cyclomatic complexity, maintainability, etc.)",
+    )
+
     args = parser.parse_args()
 
     # Root directory for scaffolding is the current working directory
@@ -690,6 +683,7 @@ def main():
                 output_arg=args.output,
                 config_arg=args.config,
                 repo_name=args.repo_name,
+                calculate_metrics=args.metrics,
             )
             
             # Display repository using rich rendering methods
@@ -709,7 +703,6 @@ def main():
             print_header("App Creation Mode", "magenta")
 
             # Set defaults for prompts and user_instructions if not provided
-            prompt_folder = args.prompts if args.prompts else "prompts"
             user_instructions = args.user_instructions if args.user_instructions else ""
 
             with Progress(
@@ -722,8 +715,7 @@ def main():
                     output = speak_to_agent(
                         action="app", 
                         input_data=args.input, 
-                        prompt_folder=prompt_folder, 
-                        user_instructions=user_instructions
+                        user_instructions=user_instructions,
                     )
                     progress.update(
                         task, description="[green]App created successfully!"
@@ -743,7 +735,6 @@ def main():
             print_header("Project Specifications Generation", "yellow")
 
             # Set defaults for prompts and user_instructions if not provided
-            prompt_folder = args.prompts if args.prompts else "prompts"
             user_instructions = args.user_instructions if args.user_instructions else ""
 
             with Progress(
@@ -762,6 +753,7 @@ def main():
                             include_args=[f"py:./{file_or_folder}"],
                             exclude_args=[],
                             config_arg=None,
+                            calculate_metrics=True, 
                         )
                         progress.update(
                             collect_task,
@@ -784,9 +776,7 @@ def main():
                         output = speak_to_agent(
                             action="specs", 
                             input_data=repository_json, 
-                            prompt_folder=prompt_folder, 
                             user_instructions=user_instructions,
-                            input_type="repository"
                         )
                         progress.update(
                             generate_task,
@@ -809,9 +799,7 @@ def main():
                         output = speak_to_agent(
                             action="specs", 
                             input_data=file_or_folder, 
-                            prompt_folder=prompt_folder,
                             user_instructions=user_instructions,
-                            input_type="repository"
                         )
                         progress.update(
                             generate_task,

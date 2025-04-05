@@ -391,6 +391,7 @@ def generate_repository(
     key_files: List[str],  # List of absolute paths for key files
     repo_name: str = "Repository Analysis",
     root_folder_display: str = ".",  # How to display the root in summary/tree
+    calculate_metrics: bool = False,  # New parameter to control metrics calculation
 ) -> Repository:
     """Generate a Repository object with analyzed code structure and content."""
     print_header("Generating Repository Object", "green")
@@ -430,11 +431,11 @@ def generate_repository(
         file_id = f"file_{i}"
         file_id_mapping[file_abs_path] = file_id
     
-    # Pre-calculate metrics for Python files to include in statistics
+    # Pre-calculate metrics for Python files to include in statistics, but only if metrics are enabled
     python_files = [f for f in files if f.lower().endswith('.py')]
     metrics_by_file = {}
     
-    if python_files:
+    if calculate_metrics and python_files:
         print_subheader("Calculating Code Quality Metrics", "blue")
         
         # Track overall metrics
@@ -526,9 +527,11 @@ def generate_repository(
                 file_used_by = [file_id_mapping[dep] for dep in dependent_files_abs if dep in file_id_mapping]
             
             # Use pre-calculated metrics if available, otherwise calculate them now
-            complexity_metrics = metrics_by_file.get(file_abs_path, {})
-            if not complexity_metrics:
-                complexity_metrics = calculate_file_metrics(file_abs_path)
+            complexity_metrics = {}
+            if calculate_metrics:
+                complexity_metrics = metrics_by_file.get(file_abs_path, {})
+                if not complexity_metrics:
+                    complexity_metrics = calculate_file_metrics(file_abs_path)
             
             project_file = ProjectCodeFile(
                 file_id=file_id,

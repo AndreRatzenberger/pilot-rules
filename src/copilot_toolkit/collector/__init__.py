@@ -32,6 +32,7 @@ def run_collection(
     output_arg: Optional[str] = None,  # Kept for backward compatibility but used to save Repository as JSON
     config_arg: Optional[str] = None,
     repo_name: Optional[str] = None,
+    calculate_metrics: bool = False,  # New parameter to control metrics calculation
 ) -> Repository:
     """
     Main entry point for the code collection process.
@@ -44,6 +45,7 @@ def run_collection(
         output_arg: Path to output JSON file to save the repository (optional)
         config_arg: Path to optional TOML config file
         repo_name: Name for the repository (default is "Repository Analysis")
+        calculate_metrics: Whether to calculate code quality metrics (default is False)
         
     Returns:
         Repository object with analyzed code data
@@ -113,6 +115,7 @@ def run_collection(
             key_files=key_files,
             repo_name=repository_name,
             root_folder_display=".",  # Or derive from sources if needed
+            calculate_metrics=calculate_metrics,  # Pass the metrics flag
         )
         
         # 5. Save Repository as JSON if output_arg is provided
