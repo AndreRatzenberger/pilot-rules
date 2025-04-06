@@ -14,7 +14,7 @@ from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from copilot_toolkit import collector
-from copilot_toolkit.agent import speak_to_agent
+from copilot_toolkit.agent import project_agent, speak_to_agent
 from copilot_toolkit.collector.utils import (
     print_header,
     print_success,
@@ -200,6 +200,7 @@ def run_interactive_mode(console: Console) -> None:
                 "cursor - Scaffold Cursor templates",
                 "copilot - Scaffold Copilot templates",
                 questionary.Separator(),
+                "project - Create a project with user stories and tasks",
                 "specs - Create a project specification",
                 "app - Create a standalone webapp based on some data",
                 questionary.Separator(),
@@ -222,6 +223,8 @@ def run_interactive_mode(console: Console) -> None:
             run_interactive_specs(console)
         elif action_type == "app":
             run_interactive_app(console)
+        elif action_type == "project":
+            run_interactive_project(console)
         elif action_type == "cursor":
             # Scaffold cursor templates
             scaffold_root_dir = Path.cwd()
@@ -347,6 +350,74 @@ def run_interactive_collect(console: Console) -> None:
         except Exception as e:
             print_error(f"Error during collection: {str(e)}")
 
+def run_interactive_project(console: Console) -> None:
+    """
+    Run the project creation in interactive mode.
+    """
+    print_header("Project Creation", "green")
+
+    # Get user instructions
+    user_instructions = questionary.text(
+        "Enter additional instructions for the agent (leave empty for none):"
+    ).ask()
+    
+    if not user_instructions:
+        user_instructions = ""
+    
+    # Confirm the selections
+    console.print("\n[bold]Project Creation Configuration:[/bold]")
+    console.print(f"[green]User instructions:[/green] {user_instructions or 'None'}")
+
+    # Get output path
+    output_path = questionary.path(
+        "Enter the output path (leave empty for default):"
+    ).ask()
+    
+    if not output_path:
+        output_path = "project.json"
+
+    if not output_path.endswith(".json"):
+        output_path = output_path + ".json"
+
+    # to real path
+    output_path = Path(output_path).resolve()
+
+    if questionary.confirm("Proceed with app creation?").ask():
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold magenta]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("[magenta]Creating app...", total=None)
+            
+            try:
+                output = project_agent(
+                    action="project", 
+                    user_instructions=user_instructions,
+                )
+                progress.update(
+                    task, description="[green]App created successfully!"
+                )
+                
+                # Use the rendering methods instead of direct printing
+                console.print("\n")
+                output.render_summary(console)
+                json_str = output.model_dump_json()
+                # write json to output_path
+                # create output_path if it doesn't exist
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, "w") as f:
+                    f.write(json_str)
+                #output.render_output_files(console)
+                print_success("App creation process completed")
+            except Exception as e:
+                progress.update(task, description=f"[red]Error creating app: {e}")
+                print_error(f"Error during app creation: {str(e)}")
+    
+    
+
+
+
 def run_interactive_specs(console: Console) -> None:
     """
     Run the project specifications generation in interactive mode.
@@ -365,6 +436,15 @@ def run_interactive_specs(console: Console) -> None:
         print_error("Input path is required")
         return
     
+    # Get output path
+    output_path = questionary.path(
+        "Enter the output path (leave empty for default):"
+    ).ask()
+    
+    if not output_path:
+        output_path = None
+
+    
     
     # Get user instructions
     user_instructions = questionary.text(
@@ -377,6 +457,7 @@ def run_interactive_specs(console: Console) -> None:
     # Confirm the selections
     console.print("\n[bold]Specifications Configuration:[/bold]")
     console.print(f"[yellow]Input path:[/yellow] {input_path}")
+    console.print(f"[yellow]Output path:[/yellow] {output_path or 'None'}")
     console.print(f"[yellow]User instructions:[/yellow] {user_instructions or 'None'}")
     
     if questionary.confirm("Proceed with specifications generation?").ask():
@@ -477,7 +558,7 @@ def run_interactive_specs(console: Console) -> None:
                 # Display results
                 console.print("\n")
                 output.render_summary(console)
-                output.render_output_files(console)
+                output.render_output_files(console, output_path)
                 
                 print_success("Specification generation completed")
             except Exception as e:
@@ -506,13 +587,14 @@ def run_interactive_app(console: Console) -> None:
         return
     
     # Get output path
-    output_path = questionary.text(
+    output_path = questionary.path(
         "Enter the output path (leave empty for default):"
     ).ask()
     
     if not output_path:
         output_path = None
-    
+
+   
 
     # Get user instructions
     user_instructions = questionary.text(
@@ -549,7 +631,7 @@ def run_interactive_app(console: Console) -> None:
                 # Use the rendering methods instead of direct printing
                 console.print("\n")
                 output.render_summary(console)
-                output.render_output_files(console)
+                output.render_output_files(console, output_path)
                 print_success("App creation process completed")
             except Exception as e:
                 progress.update(task, description=f"[red]Error creating app: {e}")
@@ -599,6 +681,9 @@ def main():
     )
     action_group.add_argument(
         "--specs", action="store_true", help="Create a project specification"
+    )
+    action_group.add_argument(
+        "--project", action="store_true", help="Create a project"
     )
     action_group.add_argument(
         "--set_key", metavar="KEY", help="Set the API key for the agent"
@@ -698,6 +783,45 @@ def main():
         elif args.copilot:
             guide_file_to_display = copy_template("copilot", scaffold_root_dir, console)
             # Success/Error messages printed within copy_template
+
+        elif args.project:
+            print_header("Project Creation Mode", "green")
+
+            # Set defaults for prompts and user_instructions if not provided
+            user_instructions = args.user_instructions if args.user_instructions else ""
+            output_path = Path(args.output).resolve() if args.output else None
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold green]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("[green]Creating project...", total=None)
+                try:
+                    output = project_agent(
+                        action="project", 
+                        user_instructions=user_instructions,
+                    )
+                    progress.update(
+                        task, description="[green]Project created successfully!"
+                    )
+
+                    # Use the rendering methods instead of direct printing
+                    console.print("\n")
+                    output.render_summary(console)
+                    output.render_summary(console)
+                    json_str = output.model_dump_json()
+                    # write json to output_path
+                    # create output_path if it doesn't exist
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(output_path, "w") as f:
+                        f.write(json_str)
+                    #output.render_output_files(console)
+                    print_success("App creation process completed")
+                    print_success("App creation process completed")
+                except Exception as e:
+                    progress.update(task, description=f"[red]Error creating app: {e}")
+                    raise
 
         elif args.app:
             print_header("App Creation Mode", "magenta")

@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from copilot_toolkit.model import OutputData
+from copilot_toolkit.model import OutputData, Project
 
 
 # Create a console for rich output
@@ -53,6 +53,104 @@ def extract_after_prompt(text: str) -> str:
     if '## Prompt' in text:
         return text.split('## Prompt')[1].strip()
     return ""
+
+
+def project_agent(
+    action: str,
+    user_instructions: str = "",
+) -> Project:
+    """
+    Communicate with an LLM agent to perform a specified action.
+
+    Args:
+        action: The type of action to perform (e.g., "app", "specs")
+        user_instructions: Additional instructions for the agent
+
+    Returns:
+        OutputData instance with the agent's response
+    """
+
+    MODEL = (
+        "gemini/gemini-2.5-pro-exp-03-25"  # "groq/qwen-qwq-32b"    #"openai/gpt-4o" #
+    )
+
+    # load a file relative to the current file
+    prompt_folder = Path(__file__).parent / "prompts"
+
+
+    # Use a spinner for loading prompt files
+    with Progress(
+        SpinnerColumn(), TextColumn("[bold blue]{task.description}"), console=console
+    ) as progress:
+        load_task = progress.add_task("[blue]Loading prompt files...", total=None)
+
+        try:
+            
+            prompt_file = load_prompt(action, prompt_folder)
+            prompt_description = extract_before_prompt(prompt_file)
+            prompt = extract_after_prompt(prompt_file)
+      
+
+            progress.update(
+                load_task, description="[green]Prompts loaded successfully!"
+            )
+        except Exception as e:
+            progress.update(load_task, description=f"[red]Error loading prompts: {e}")
+            raise
+
+     # Set up the agent with the prompt
+    with Progress(
+        SpinnerColumn(), TextColumn("[bold blue]{task.description}"), console=console
+    ) as progress:
+        setup_task = progress.add_task("[blue]Setting up agent...", total=None)
+
+        try:
+            # Initialize the Flock
+            flock = Flock(model=MODEL, show_flock_banner=False)
+
+            # Create the agent
+            project_agent = FlockFactory.create_default_agent(
+                name=f"project_agent",
+                description=prompt_description,
+                input="prompt: str, user_instructions: str",
+                output="output: Project",
+                max_tokens=64000,
+                no_output=True,
+            )
+
+            # Add the agent to the Flock
+            flock.add_agent(project_agent)
+            progress.update(setup_task, description="[green]Agent setup complete!")
+        except Exception as e:
+            progress.update(setup_task, description=f"[red]Error setting up agent: {e}")
+            raise
+
+
+    with Progress(
+        SpinnerColumn(), TextColumn("[bold yellow]{task.description}"), console=console
+    ) as progress:
+        agent_task = progress.add_task(
+            f"[yellow]Running {action} agent (this may take a while)...", total=None
+        )
+
+        try:
+            result = flock.run(
+                start_agent=project_agent,
+                input={
+                    "prompt": prompt,
+                    "user_instructions": user_instructions,
+                },
+            )
+            progress.update(
+                agent_task, description="[green]Agent completed successfully!"
+            )
+        except Exception as e:
+            progress.update(
+                agent_task, description=f"[red]Error during agent execution: {e}"
+            )
+            raise
+
+    return result.output    
 
 
 def speak_to_agent(

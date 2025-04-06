@@ -342,6 +342,7 @@ class Repository(BaseModel):
 
 class UserStory(BaseModel):
     user_story_id: str = Field(..., description="Unique identifier for the user story")
+    status: Literal["active", "created", "done"] = Field(..., description="Status of the user story")
     description: str = Field(..., description="Description of the user story")
     definition_of_done: list[str] = Field(..., description="List of criteria for the user story to be considered done")
     tasks: list[str] = Field(..., description="List of task ids that are part of this user story")
@@ -351,16 +352,17 @@ class UserStory(BaseModel):
 
 class Task(BaseModel):
     task_id: str = Field(..., description="Unique identifier for the task")
+    status: Literal["active", "created", "done"] = Field(..., description="Status of the task")
     acceptance_criteria: list[str] = Field(..., description="List of acceptance criteria for the task")
     description: str = Field(..., description="Description of the task")
     estimated_lines_of_code: int = Field(..., description="Estimated number of lines of code for the task")
     dependencies: list[str] = Field(..., description="List of task ids that must be completed before this one")
     used_by: list[str] = Field(..., description="List of task ids that depend on this one")
-    file_actions: list["FileAction"] = Field(..., description="List of file actions for the task")
+    to_do_list: list["ToDoItem"] = Field(..., description="List of to do items for completing the task")
 
-class FileAction(BaseModel):
+class ToDoItem(BaseModel):
     file_id: str = Field(..., description="Unique identifier for the file")
-    status: Literal["planned", "created", "done"] = Field(..., description="Status of the file")
+    status: Literal["active", "created", "done"] = Field(..., description="Status of the file")
     action: Literal["create", "update", "delete"] = Field(..., description="Action to be taken on the file")
     description: str = Field(..., description="Description of the action")
 
@@ -373,8 +375,71 @@ class Project(BaseModel):
     requirements: list[str] = Field(..., description="List of requirements for the project")
     tech_stack: list[str] = Field(..., description="List of technologies used in the project")
     user_stories: list[UserStory] | None = Field(..., description="List of user stories for the project")
-    tasks: list[Task]| None = Field(..., description="List of tasks for the project")
-    project_files: list[ProjectFile | ProjectCodeFile] = Field(..., description="Output data of the project")
+    # tasks: list[Task]| None = Field(..., description="List of tasks for the project")
+    # project_files: list[ProjectFile | ProjectCodeFile] = Field(..., description="Output data of the project")
+
+    def render_summary(self, console: Console) -> None:
+        """
+        Render a summary of the project in a beautiful format.
+        
+        Args:
+            console: The Rich console instance to use for output
+        """
+        console.print("\n")
+        console.rule(f"[bold blue]{self.name}")
+        console.print("\n")
+        console.print(self.description)
+        console.print("\n")
+        
+        # Create a table for requirements
+        req_table = Table(title="Project Requirements", box=box.ROUNDED)
+        req_table.add_column("Requirement", style="cyan")
+        
+        for req in self.requirements:
+            req_table.add_row(req)
+            
+        console.print(req_table)
+        console.print("\n")
+        
+        # Create a table for tech stack
+        tech_table = Table(title="Technology Stack", box=box.ROUNDED)
+        tech_table.add_column("Technology", style="green")
+        
+        for tech in self.tech_stack:
+            tech_table.add_row(tech)
+            
+        console.print(tech_table)
+        
+        # Summary of user stories and tasks
+        if self.user_stories:
+            console.print("\n")
+            console.rule("[bold cyan]User Stories")
+            console.print(f"\n[bold]Total User Stories:[/bold] {len(self.user_stories)}")
+            for user_story in self.user_stories:
+                console.print(f"\n[bold]User Story:[/bold] {user_story.user_story_id}")
+                console.print(f"[bold]Description:[/bold] {user_story.description}")
+                console.print(f"[bold]Definition of Done:[/bold] {user_story.definition_of_done}")
+                console.print(f"[bold]Tasks:[/bold] {user_story.tasks}")
+                console.print(f"[bold]Story Points:[/bold] {user_story.story_points}")
+        
+        # if self.tasks:
+        #     console.print("\n")
+        #     console.rule("[bold cyan]Tasks")
+        #     console.print(f"\n[bold]Total Tasks:[/bold] {len(self.tasks)}")
+        #     for task in self.tasks:
+        #         console.print(f"\n[bold]Task:[/bold] {task.task_id}")
+        #         console.print(f"[bold]Description:[/bold] {task.description}")
+        #         console.print(f"[bold]Acceptance Criteria:[/bold] {task.acceptance_criteria}")
+        #         console.print(f"[bold]Estimated Lines of Code:[/bold] {task.estimated_lines_of_code}")
+        #         console.print(f"[bold]Dependencies:[/bold] {task.dependencies}")
+        #         console.print(f"[bold]Used By:[/bold] {task.used_by}")
+        
+        # # Summary of files
+        # console.print("\n")
+        # console.rule("[bold cyan]Files")
+        # console.print(f"\n[bold]Total Files:[/bold] {len(self.project_files)}")
+        
+        # console.rule("[bold cyan]End of Project Summary")
 
 
     

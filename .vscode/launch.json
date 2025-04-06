@@ -38,6 +38,20 @@
             ]
           },
           {
+            "name": "Debug project",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/copilot_toolkit/main.py",
+            "console": "integratedTerminal",
+            "args": [
+              "--project",
+              "--user_instructions",
+              "Please generate a python project that renders a 3d scene with six spheres. Be creative with lightning and placing of the spheres",
+              "--output",
+              "sphere_renderer.json"
+            ]
+          },
+          {
             "name": "Debug collect",
             "type": "debugpy",
             "request": "launch",
@@ -45,6 +59,17 @@
             "console": "integratedTerminal",
             "args": [
               "--collect"
+            ]
+          }
+          ,
+          {
+            "name": "Debug interactive",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/copilot_toolkit/main.py",
+            "console": "integratedTerminal",
+            "args": [
+              "--interactive"
             ]
           }
     ]
