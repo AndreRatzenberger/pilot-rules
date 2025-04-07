@@ -1,4 +1,5 @@
 # src/pilot_rules/main.py
+import json
 import os
 import shutil
 import argparse
@@ -14,7 +15,7 @@ from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from copilot_toolkit import collector
-from copilot_toolkit.agent import project_agent, speak_to_agent
+from copilot_toolkit.agent import project_agent, speak_to_agent, task_agent
 from copilot_toolkit.collector.utils import (
     print_header,
     print_success,
@@ -201,6 +202,7 @@ def run_interactive_mode(console: Console) -> None:
                 "copilot - Scaffold Copilot templates",
                 questionary.Separator(),
                 "project - Create a project with user stories and tasks",
+                "task - Create tasks for the next user story",
                 "specs - Create a project specification",
                 "app - Create a standalone webapp based on some data",
                 questionary.Separator(),
@@ -225,6 +227,8 @@ def run_interactive_mode(console: Console) -> None:
             run_interactive_app(console)
         elif action_type == "project":
             run_interactive_project(console)
+        elif action_type == "task":
+            run_interactive_task(console)
         elif action_type == "cursor":
             # Scaffold cursor templates
             scaffold_root_dir = Path.cwd()
@@ -408,6 +412,82 @@ def run_interactive_project(console: Console) -> None:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(output_path, "w") as f:
                     f.write(json_str)
+                #output.render_output_files(console)
+                print_success("App creation process completed")
+            except Exception as e:
+                progress.update(task, description=f"[red]Error creating app: {e}")
+                print_error(f"Error during app creation: {str(e)}")
+
+
+def run_interactive_task(console: Console) -> None:
+    """
+    Run the project creation in interactive mode.
+    """
+    print_header("Project Implementation", "green")
+
+    # Get user instructions
+    project_file = questionary.path(
+        "Enter the path to the project file:"
+    ).ask()
+    
+    if not project_file:
+        print_error("Project file is required")
+        return
+
+    # Get user instructions
+    user_instructions = questionary.text(
+        "Enter additional instructions for the agent (leave empty for none):"
+    ).ask()
+    
+    if not user_instructions:
+        user_instructions = ""
+    
+    # Confirm the selections
+    console.print("\n[bold]Project Creation Configuration:[/bold]")
+    console.print(f"[green]User instructions:[/green] {user_instructions or 'None'}")
+
+    # Get output path
+    output_path = questionary.path(
+        "Enter the output folder (leave empty for default):"
+    ).ask()
+    
+    if not output_path:
+        output_path =".project/tasks"
+
+
+
+    # to real path
+    output_path = Path(output_path).resolve()
+
+    if questionary.confirm("Proceed with app creation?").ask():
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold magenta]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("[magenta]Creating app...", total=None)
+            
+            try:
+                output = task_agent(
+                    action="task",
+                    project_file=project_file,
+                    user_instructions=user_instructions,
+                )
+                progress.update(
+                    task, description="[green]App created successfully!"
+                )
+                
+                # Use the rendering methods instead of direct printing
+                console.print("\n")
+             
+                # write json to output_path
+                # create output_path if it doesn't exist
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # write output to output_path
+                with open(output_path, "w") as f:
+                    f.write(output.model_dump_json())
+
                 #output.render_output_files(console)
                 print_success("App creation process completed")
             except Exception as e:

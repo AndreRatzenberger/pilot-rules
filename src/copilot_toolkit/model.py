@@ -3,6 +3,7 @@ from flock.core.flock_registry import flock_type
 from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
+from rich.markdown import Markdown
 from rich import box
 from pathlib import Path
 
@@ -340,6 +341,7 @@ class Repository(BaseModel):
                 console.print(f"\n[red]Error saving repository data: {str(e)}[/red]")
             return False
 
+@flock_type
 class UserStory(BaseModel):
     user_story_id: str = Field(..., description="Unique identifier for the user story")
     status: Literal["active", "created", "done"] = Field(..., description="Status of the user story")
@@ -350,6 +352,7 @@ class UserStory(BaseModel):
     dependencies: list[str] = Field(..., description="List of user story ids that must be completed before this one")
     used_by: list[str] = Field(..., description="List of user story ids that depend on this one")
 
+@flock_type
 class Task(BaseModel):
     task_id: str = Field(..., description="Unique identifier for the task")
     status: Literal["active", "created", "done"] = Field(..., description="Status of the task")
@@ -358,13 +361,23 @@ class Task(BaseModel):
     estimated_lines_of_code: int = Field(..., description="Estimated number of lines of code for the task")
     dependencies: list[str] = Field(..., description="List of task ids that must be completed before this one")
     used_by: list[str] = Field(..., description="List of task ids that depend on this one")
-    to_do_list: list["ToDoItem"] = Field(..., description="List of to do items for completing the task")
 
+@flock_type
 class ToDoItem(BaseModel):
-    file_id: str = Field(..., description="Unique identifier for the file")
-    status: Literal["active", "created", "done"] = Field(..., description="Status of the file")
-    action: Literal["create", "update", "delete"] = Field(..., description="Action to be taken on the file")
-    description: str = Field(..., description="Description of the action")
+    todo_id: str = Field(..., description="Unique identifier for the todo item")
+    user_story_id: str = Field(..., description="Unique identifier for the user story")
+    task_id: str = Field(..., description="Unique identifier for the task")
+    cli_command_linux: str | None = Field(..., description="valid CLI command to be executed on linux")
+    cli_command_windows: str | None = Field(..., description="valid CLI command to be executed on windows")
+    cli_command_macos: str | None = Field(..., description="valid CLI command to be executed on macos")
+    file_content: str | None = Field(..., description="Complete content of the file if action is create_file or update_file")
+    description: str = Field(..., description="Description and/or reasoning of the todo item")
+
+@flock_type
+class TaskAndToDoItemList(BaseModel):
+    tasks: list[Task] = Field(..., description="List of tasks")
+    todo_items: list[ToDoItem] = Field(..., description="List of todo items")
+    
 
 
 
@@ -372,7 +385,9 @@ class ToDoItem(BaseModel):
 class Project(BaseModel):
     name: str = Field(..., description="Name of the project")
     description: str = Field(..., description="Description of the project")
-    requirements: list[str] = Field(..., description="List of requirements for the project")
+    implementation_plan: str = Field(..., description="High Level Implementation plan for the project in beautiful markdown")
+    readme: str = Field(..., description="README.md file for the project in beautiful markdown")
+    requirements: list[str] = Field(..., description="List of feature requirements for the project")
     tech_stack: list[str] = Field(..., description="List of technologies used in the project")
     user_stories: list[UserStory] | None = Field(..., description="List of user stories for the project")
     # tasks: list[Task]| None = Field(..., description="List of tasks for the project")
@@ -389,6 +404,11 @@ class Project(BaseModel):
         console.rule(f"[bold blue]{self.name}")
         console.print("\n")
         console.print(self.description)
+        console.print("\n")
+
+        console.print(Markdown(self.implementation_plan))
+        console.print("\n")
+        console.print(Markdown(self.readme))
         console.print("\n")
         
         # Create a table for requirements
@@ -419,7 +439,7 @@ class Project(BaseModel):
                 console.print(f"\n[bold]User Story:[/bold] {user_story.user_story_id}")
                 console.print(f"[bold]Description:[/bold] {user_story.description}")
                 console.print(f"[bold]Definition of Done:[/bold] {user_story.definition_of_done}")
-                console.print(f"[bold]Tasks:[/bold] {user_story.tasks}")
+                #console.print(f"[bold]Tasks:[/bold] {user_story.tasks}")
                 console.print(f"[bold]Story Points:[/bold] {user_story.story_points}")
         
         # if self.tasks:
