@@ -344,13 +344,23 @@ def run_interactive_collect(console: Console) -> None:
             if questionary.confirm("Would you like to save the repository data to a file?").ask():
                 from pathlib import Path
                 
-                output_path = questionary.text(
-                    "Enter the output file path (e.g., 'repository_data.json'):",
-                    default="repository_data.json"
+                # Ask for the export format
+                export_format = questionary.select(
+                    "Select export format:",
+                    choices=["json", "markdown"]
                 ).ask()
                 
-                # Use the save_to_json method
-                repository.save_to_json(output_path, console)
+                output_path = questionary.text(
+                    f"Enter the output file path (e.g., 'repository_data.{export_format}'):",
+                    default=f"repository_data.{export_format}"
+                ).ask()
+                
+                # Use the appropriate save method based on format
+                if export_format == "json":
+                    repository.save_to_json(output_path, console)
+                else:
+                    repository.save_to_markdown(output_path, console)
+                    
         except Exception as e:
             print_error(f"Error during collection: {str(e)}")
 
@@ -805,6 +815,12 @@ def main():
         help="Path to save the output JSON file with repository data",
     )
     collect_group.add_argument(
+        "--format",
+        choices=["json", "markdown"],
+        default="json",
+        help="Format to save the repository data (json or markdown)",
+    )
+    collect_group.add_argument(
         "--input",
         default=None,
         metavar="FILEPATH",
@@ -854,6 +870,14 @@ def main():
             # Display repository using rich rendering methods
             repository.render_summary(console)
             repository.render_files(console)
+            
+            # Save repository data if output path is specified
+            if args.output:
+                if args.format == "json":
+                    repository.save_to_json(args.output, console)
+                else:
+                    repository.save_to_markdown(args.output, console)
+            
             print_success("Repository analysis completed successfully")
 
         elif args.cursor:

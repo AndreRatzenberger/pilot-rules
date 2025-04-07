@@ -340,6 +340,126 @@ class Repository(BaseModel):
             if console:
                 console.print(f"\n[red]Error saving repository data: {str(e)}[/red]")
             return False
+            
+    def save_to_markdown(self, output_path: str, console: Optional[Console] = None) -> bool:
+        """
+        Save the repository data to a Markdown file.
+        This exports the same data as save_to_json but in Markdown format.
+        
+        Args:
+            output_path: The path where to save the Markdown file
+            console: Optional Rich console for output messages
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        from pathlib import Path
+        
+        try:
+            file_path = Path(output_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(file_path, "w", encoding="utf-8") as md_file:
+                # Write repository header and basic info
+                md_file.write(f"# {self.name}\n\n")
+                
+                # Write statistics section
+                md_file.write("## Repository Statistics\n\n")
+                for stat_line in self.statistics.strip().split('\n'):
+                    if stat_line and '-' in stat_line:
+                        if ':' in stat_line:
+                            key, value = stat_line.split(':', 1)
+                        else:
+                            key, value = stat_line.split('-', 1)
+                        md_file.write(f"- **{key.strip('- ')}**: {value.strip()}\n")
+                md_file.write("\n")
+                
+                # Write files section with complete data for each file
+                md_file.write("## Project Files\n\n")
+                
+                for i, file in enumerate(self.project_files):
+                    # Make a header for each file
+                    md_file.write(f"### {i+1}. {file.file_path}\n\n")
+                    md_file.write(f"- **File ID**: {file.file_id}\n")
+                    md_file.write(f"- **Type**: {'Code File' if isinstance(file, ProjectCodeFile) else 'File'}\n")
+                    md_file.write(f"- **Line Count**: {file.line_count}\n")
+                    md_file.write(f"- **Description**: {file.description}\n")
+                    
+                    # If it's a code file, include additional information
+                    if isinstance(file, ProjectCodeFile):
+                        # Dependencies
+                        if file.dependencies:
+                            md_file.write("- **Dependencies**:\n")
+                            for dep_id in file.dependencies:
+                                md_file.write(f"  - {dep_id}\n")
+                        else:
+                            md_file.write("- **Dependencies**: None\n")
+                        
+                        # Used by
+                        if file.used_by:
+                            md_file.write("- **Used By**:\n")
+                            for used_id in file.used_by:
+                                md_file.write(f"  - {used_id}\n")
+                        else:
+                            md_file.write("- **Used By**: None\n")
+                        
+                        # Complexity metrics
+                        if file.complexity_metrics:
+                            md_file.write("- **Complexity Metrics**:\n")
+                            
+                            # Cyclomatic complexity
+                            if "cyclomatic_complexity" in file.complexity_metrics:
+                                cc = file.complexity_metrics["cyclomatic_complexity"]
+                                md_file.write("  - **Cyclomatic Complexity**:\n")
+                                for cc_key, cc_value in cc.items():
+                                    md_file.write(f"    - {cc_key}: {cc_value}\n")
+                            
+                            # Maintainability index
+                            if "maintainability_index" in file.complexity_metrics:
+                                mi = file.complexity_metrics["maintainability_index"]
+                                md_file.write("  - **Maintainability Index**:\n")
+                                for mi_key, mi_value in mi.items():
+                                    md_file.write(f"    - {mi_key}: {mi_value}\n")
+                            
+                            # Code smells
+                            if "code_smells" in file.complexity_metrics and file.complexity_metrics["code_smells"]:
+                                smells = file.complexity_metrics["code_smells"]
+                                md_file.write("  - **Code Smells**:\n")
+                                for smell in smells:
+                                    md_file.write(f"    - Type: {smell.get('type', 'Unknown')}, Location: {smell.get('location', 'Unknown')}\n")
+                                    if "details" in smell:
+                                        md_file.write(f"      Details: {smell['details']}\n")
+                    
+                    # Include the complete file content
+                    md_file.write("\n**Content**:\n")
+                    md_file.write("```\n")
+                    md_file.write(file.content)
+                    md_file.write("\n```\n\n")
+                    
+                    # Add a separator between files
+                    md_file.write("---\n\n")
+                
+                # Add overall statistics as a summary at the end
+                md_file.write("## Summary\n\n")
+                md_file.write(f"- **Total Files**: {len(self.project_files)}\n")
+                md_file.write(f"- **Code Files**: {len([f for f in self.project_files if isinstance(f, ProjectCodeFile)])}\n")
+                md_file.write(f"- **Regular Files**: {len([f for f in self.project_files if not isinstance(f, ProjectCodeFile)])}\n")
+                
+                # Calculate total lines of code
+                total_lines = sum(f.line_count for f in self.project_files)
+                md_file.write(f"- **Total Lines of Code**: {total_lines}\n")
+            
+            if console:
+                console.print(f"\n[green]Repository data saved to {output_path}[/green]")
+            
+            return True
+        except Exception as e:
+            if console:
+                console.print(f"\n[red]Error saving repository data to Markdown: {str(e)}[/red]")
+            import traceback
+            if console:
+                console.print(f"\n[red]{traceback.format_exc()}[/red]")
+            return False
 
 @flock_type
 class UserStory(BaseModel):
