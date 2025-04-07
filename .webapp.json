@@ -1,0 +1,408 @@
+{
+    "name": "python_3d_sphere_renderer",
+    "description": "A Python application to render a photorealistic 3D scene featuring six differently colored spheres with creative lighting.",
+    "requirements": [
+        "Python 3.x",
+        "A suitable 3D rendering library (e.g., PyVista, VPython, a ray tracing library)"
+    ],
+    "tech_stack": [
+        "Python"
+    ],
+    "user_stories": [
+        {
+            "user_story_id": "us_init_project",
+            "status": "created",
+            "description": "As a developer, I want to set up the basic project structure so that I can start developing the application.",
+            "definition_of_done": [
+                "Project directory created.",
+                "Core files (`main.py`, `requirements.txt`) created.",
+                "Basic README.md created (optional but recommended)."
+            ],
+            "tasks": [
+                "task_create_files"
+            ],
+            "story_points": 1,
+            "dependencies": [],
+            "used_by": [
+                "us_render_basic"
+            ]
+        },
+        {
+            "user_story_id": "us_render_basic",
+            "status": "created",
+            "description": "As a user, I want to see a basic 3D scene rendered so that I know the core rendering pipeline is working.",
+            "definition_of_done": [
+                "Chosen rendering library is installed and imported.",
+                "A window or output file shows a basic scene (e.g., empty background, simple shape).",
+                "Camera is positioned.",
+                "Basic rendering loop is functional."
+            ],
+            "tasks": [
+                "task_setup_library",
+                "task_basic_render"
+            ],
+            "story_points": 3,
+            "dependencies": [
+                "us_init_project"
+            ],
+            "used_by": [
+                "us_add_spheres",
+                "us_output_image"
+            ]
+        },
+        {
+            "user_story_id": "us_add_spheres",
+            "status": "created",
+            "description": "As a user, I want to see six spheres in the scene so that the main objects are present.",
+            "definition_of_done": [
+                "A representation for a sphere object exists.",
+                "Six sphere instances are created.",
+                "Spheres are positioned within the viewable scene.",
+                "Spheres are rendered using the basic pipeline."
+            ],
+            "tasks": [
+                "task_define_sphere",
+                "task_place_spheres"
+            ],
+            "story_points": 2,
+            "dependencies": [
+                "us_render_basic"
+            ],
+            "used_by": [
+                "us_assign_colors",
+                "us_implement_lighting"
+            ]
+        },
+        {
+            "user_story_id": "us_assign_colors",
+            "status": "created",
+            "description": "As a user, I want each sphere to have a distinct color so that they are visually distinguishable.",
+            "definition_of_done": [
+                "Six distinct colors are defined.",
+                "Each sphere is assigned one of the defined colors.",
+                "The rendered spheres display their assigned colors."
+            ],
+            "tasks": [
+                "task_define_colors",
+                "task_apply_colors"
+            ],
+            "story_points": 1,
+            "dependencies": [
+                "us_add_spheres"
+            ],
+            "used_by": [
+                "us_implement_lighting"
+            ]
+        },
+        {
+            "user_story_id": "us_implement_lighting",
+            "status": "created",
+            "description": "As a user, I want the scene to have beautiful lighting so that it looks photorealistic and visually appealing.",
+            "definition_of_done": [
+                "At least one light source is defined and added to the scene.",
+                "A lighting model (e.g., Phong, PBR) is implemented or configured.",
+                "The colors/shading of the spheres react to the light source(s).",
+                "The lighting contributes to a visually appealing/photorealistic look."
+            ],
+            "tasks": [
+                "task_lighting_model",
+                "task_apply_lighting"
+            ],
+            "story_points": 5,
+            "dependencies": [
+                "us_add_spheres",
+                "us_assign_colors"
+            ],
+            "used_by": [
+                "us_output_image"
+            ]
+        },
+        {
+            "user_story_id": "us_output_image",
+            "status": "created",
+            "description": "As a developer, I want the application to output the rendered scene as an image file so that the result can be saved and viewed.",
+            "definition_of_done": [
+                "The application can save the current rendered view to an image file (e.g., PNG).",
+                "The saved image accurately represents the rendered scene with spheres, colors, and lighting."
+            ],
+            "tasks": [
+                "task_save_image"
+            ],
+            "story_points": 2,
+            "dependencies": [
+                "us_render_basic",
+                "us_implement_lighting"
+            ],
+            "used_by": []
+        }
+    ],
+    "tasks": [
+        {
+            "task_id": "task_create_files",
+            "status": "created",
+            "acceptance_criteria": [
+                "File `main.py` exists.",
+                "File `requirements.txt` exists."
+            ],
+            "description": "Create the initial project files: `main.py` for the main script and `requirements.txt` for dependencies.",
+            "estimated_lines_of_code": 10,
+            "dependencies": [],
+            "used_by": [
+                "task_setup_library"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "created",
+                    "action": "create",
+                    "description": "Create main application entry point."
+                },
+                {
+                    "file_id": "requirements_txt",
+                    "status": "created",
+                    "action": "create",
+                    "description": "Create file for listing project dependencies."
+                }
+            ]
+        },
+        {
+            "task_id": "task_setup_library",
+            "status": "created",
+            "acceptance_criteria": [
+                "A suitable 3D rendering library is chosen.",
+                "The chosen library is added to `requirements.txt`."
+            ],
+            "description": "Choose and add the 3D rendering library dependency to `requirements.txt`.",
+            "estimated_lines_of_code": 5,
+            "dependencies": [
+                "task_create_files"
+            ],
+            "used_by": [
+                "task_basic_render"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "requirements_txt",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Add rendering library dependency."
+                }
+            ]
+        },
+        {
+            "task_id": "task_basic_render",
+            "status": "created",
+            "acceptance_criteria": [
+                "The application runs without errors.",
+                "A window appears or an image file is generated.",
+                "A basic scene (e.g., background color) is displayed.",
+                "Camera is configured."
+            ],
+            "description": "Implement the basic rendering loop, camera setup, and display a simple scene using the chosen library.",
+            "estimated_lines_of_code": 50,
+            "dependencies": [
+                "task_setup_library"
+            ],
+            "used_by": [
+                "task_define_sphere",
+                "task_define_colors",
+                "task_lighting_model",
+                "task_save_image"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Implement basic rendering setup and loop."
+                }
+            ]
+        },
+        {
+            "task_id": "task_define_sphere",
+            "status": "created",
+            "acceptance_criteria": [
+                "Code exists to define the geometry or properties of a sphere.",
+                "This definition is usable by the rendering engine."
+            ],
+            "description": "Define a sphere object or utilize the rendering library's sphere primitive.",
+            "estimated_lines_of_code": 30,
+            "dependencies": [
+                "task_basic_render"
+            ],
+            "used_by": [
+                "task_place_spheres"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Add sphere definition or usage."
+                }
+            ]
+        },
+        {
+            "task_id": "task_place_spheres",
+            "status": "created",
+            "acceptance_criteria": [
+                "Six sphere instances are created in the code.",
+                "Each sphere has a defined position in the 3D scene.",
+                "The spheres appear in the rendered output."
+            ],
+            "description": "Instantiate and position six spheres within the 3D scene.",
+            "estimated_lines_of_code": 20,
+            "dependencies": [
+                "task_define_sphere"
+            ],
+            "used_by": [
+                "task_apply_colors",
+                "task_apply_lighting"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Instantiate and position six spheres."
+                }
+            ]
+        },
+        {
+            "task_id": "task_define_colors",
+            "status": "created",
+            "acceptance_criteria": [
+                "Six distinct color values (e.g., RGB tuples) are defined in the code."
+            ],
+            "description": "Define six distinct color values to be used for the spheres.",
+            "estimated_lines_of_code": 10,
+            "dependencies": [
+                "task_basic_render"
+            ],
+            "used_by": [
+                "task_apply_colors"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Define color constants or variables."
+                }
+            ]
+        },
+        {
+            "task_id": "task_apply_colors",
+            "status": "created",
+            "acceptance_criteria": [
+                "Each of the six sphere instances is assigned one of the defined colors.",
+                "The rendered spheres show the assigned colors."
+            ],
+            "description": "Assign the defined colors to the materials or properties of the six spheres.",
+            "estimated_lines_of_code": 15,
+            "dependencies": [
+                "task_place_spheres",
+                "task_define_colors"
+            ],
+            "used_by": [],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Apply colors to sphere materials/properties."
+                }
+            ]
+        },
+        {
+            "task_id": "task_lighting_model",
+            "status": "created",
+            "acceptance_criteria": [
+                "Code exists to define at least one light source (position, color, intensity).",
+                "A lighting calculation model (e.g., Phong) is implemented or configured in the renderer."
+            ],
+            "description": "Choose and implement/configure a lighting model and define light sources.",
+            "estimated_lines_of_code": 60,
+            "dependencies": [
+                "task_basic_render"
+            ],
+            "used_by": [
+                "task_apply_lighting"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Implement or configure lighting model and sources."
+                }
+            ]
+        },
+        {
+            "task_id": "task_apply_lighting",
+            "status": "created",
+            "acceptance_criteria": [
+                "The rendering process incorporates the defined light sources and model.",
+                "The appearance (shading) of the spheres changes based on the lighting.",
+                "The scene looks illuminated."
+            ],
+            "description": "Integrate the lighting calculations into the rendering process for the spheres.",
+            "estimated_lines_of_code": 40,
+            "dependencies": [
+                "task_place_spheres",
+                "task_lighting_model"
+            ],
+            "used_by": [
+                "task_save_image"
+            ],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Apply lighting calculations during rendering."
+                }
+            ]
+        },
+        {
+            "task_id": "task_save_image",
+            "status": "created",
+            "acceptance_criteria": [
+                "The application has a function or mechanism to save the rendered view.",
+                "Executing this mechanism produces an image file (e.g., PNG).",
+                "The image file contains the rendered scene."
+            ],
+            "description": "Implement functionality to save the rendered frame to an image file.",
+            "estimated_lines_of_code": 25,
+            "dependencies": [
+                "task_basic_render",
+                "task_apply_lighting"
+            ],
+            "used_by": [],
+            "file_actions": [
+                {
+                    "file_id": "main_py",
+                    "status": "active",
+                    "action": "update",
+                    "description": "Add image saving functionality."
+                }
+            ]
+        }
+    ],
+    "project_files": [
+        {
+            "file_id": "main_py",
+            "description": "Main application script containing the rendering setup, scene definition, and execution logic.",
+            "file_path": "main.py",
+            "content": "# Placeholder for main application logic\n\nprint(\"Initializing 3D Sphere Renderer...\")\n\n# TODO: Import rendering library\n# TODO: Setup scene\n# TODO: Define camera\n# TODO: Define materials/colors\n# TODO: Define lighting\n# TODO: Create sphere objects\n# TODO: Position spheres\n# TODO: Run rendering loop\n# TODO: Save output image\n\nprint(\"Renderer finished (placeholder).\")\n",
+            "line_count": 13
+        },
+        {
+            "file_id": "requirements_txt",
+            "description": "Lists the Python package dependencies for the project.",
+            "file_path": "requirements.txt",
+            "content": "# Add rendering library dependency here\n# e.g., pyvista\n# e.g., vpython\n# e.g., numpy (often needed)\n",
+            "line_count": 4
+        }
+    ]
+}

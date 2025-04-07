@@ -3,6 +3,7 @@ from flock.core.flock_registry import flock_type
 from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
+from rich.markdown import Markdown
 from rich import box
 from pathlib import Path
 
@@ -106,6 +107,7 @@ class ProjectFile(BaseModel):
 class ProjectCodeFile(ProjectFile):
     dependencies: list[str] = Field(..., description="List of file ids that must be created before this one")
     used_by: list[str] = Field(..., description="List of file ids that depend on this one")
+    complexity_metrics: dict[str, Any] = Field(default_factory=dict, description="Code quality and complexity metrics")
 
 
 @flock_type
@@ -157,21 +159,40 @@ class Repository(BaseModel):
         files_table.add_column("Path", style="magenta")
         files_table.add_column("Lines", style="green")
         files_table.add_column("Type", style="yellow")
+        files_table.add_column("Complexity", style="red")
+        files_table.add_column("Maintainability", style="blue")
         
         # Add files to the table (limited to max_files)
         for file in self.project_files[:max_files]:
             file_type = "Code File" if isinstance(file, ProjectCodeFile) else "File"
+            
+            complexity = "-"
+            maintainability = "-"
+            if isinstance(file, ProjectCodeFile) and file.complexity_metrics:
+                cc = file.complexity_metrics.get("cyclomatic_complexity", {})
+                mi = file.complexity_metrics.get("maintainability_index", {})
+                
+                if cc and "rank" in cc:
+                    complexity = f"{cc.get('total', '?')} ({cc.get('rank', '?')})"
+                
+                if mi and "rank" in mi:
+                    maintainability = f"{int(mi.get('value', 0))} ({mi.get('rank', '?')})"
+            
             files_table.add_row(
                 file.file_id,
                 file.file_path,
                 str(file.line_count),
-                file_type
+                file_type,
+                complexity,
+                maintainability
             )
         
         if len(self.project_files) > max_files:
             files_table.add_row(
                 "...",
                 f"[yellow]And {len(self.project_files) - max_files} more files...[/yellow]",
+                "",
+                "",
                 "",
                 ""
             )
@@ -220,6 +241,71 @@ class Repository(BaseModel):
                 )
                 
             console.print(deps_table)
+            
+            # New Code Metrics Table
+            files_with_metrics = [f for f in code_files if isinstance(f, ProjectCodeFile) and f.complexity_metrics]
+            if files_with_metrics:
+                console.print("\n")
+                console.rule("[bold cyan]Code Quality Metrics")
+                console.print("\n")
+                
+                metrics_table = Table(title="Code Complexity and Quality", box=box.ROUNDED)
+                metrics_table.add_column("File", style="cyan")
+                metrics_table.add_column("Cyclomatic Complexity", style="red")
+                metrics_table.add_column("Maintainability", style="blue")
+                metrics_table.add_column("Code Smells", style="yellow")
+                
+                for file in files_with_metrics[:max(10, max_files // 2)]:
+                    metrics = file.complexity_metrics
+                    cc = metrics.get("cyclomatic_complexity", {})
+                    mi = metrics.get("maintainability_index", {})
+                    smells = metrics.get("code_smells", [])
+                    
+                    cc_display = "[grey]-[/grey]"
+                    if cc:
+                        rank = cc.get("rank", "?")
+                        rank_color = {
+                            "A": "green", "B": "green",
+                            "C": "yellow", "D": "red",
+                            "F": "red bold"
+                        }.get(rank, "white")
+                        cc_display = f"Total: {cc.get('total', '?')} | Avg: {cc.get('average', '?')} | Rank: [{rank_color}]{rank}[/{rank_color}]"
+                    
+                    mi_display = "[grey]-[/grey]"
+                    if mi:
+                        rank = mi.get("rank", "?")
+                        rank_color = {
+                            "A": "green", "B": "green",
+                            "C": "yellow", "D": "red",
+                            "F": "red bold"
+                        }.get(rank, "white")
+                        mi_display = f"Index: {int(mi.get('value', 0))} | Rank: [{rank_color}]{rank}[/{rank_color}]"
+                    
+                    smells_display = "[grey]None detected[/grey]"
+                    if smells:
+                        smells_list = []
+                        for i, smell in enumerate(smells[:3]):  # Show up to 3 smells
+                            smells_list.append(f"{smell['type']} in {smell['location']}")
+                        if len(smells) > 3:
+                            smells_list.append(f"...and {len(smells) - 3} more")
+                        smells_display = "\n".join(smells_list)
+                    
+                    metrics_table.add_row(
+                        file.file_path,
+                        cc_display,
+                        mi_display,
+                        smells_display
+                    )
+                
+                if len(files_with_metrics) > max(10, max_files // 2):
+                    metrics_table.add_row(
+                        "[yellow]And more files...[/yellow]",
+                        "",
+                        "",
+                        ""
+                    )
+                    
+                console.print(metrics_table)
         
         console.rule("[bold cyan]End of Repository")
     
@@ -255,8 +341,10 @@ class Repository(BaseModel):
                 console.print(f"\n[red]Error saving repository data: {str(e)}[/red]")
             return False
 
+@flock_type
 class UserStory(BaseModel):
     user_story_id: str = Field(..., description="Unique identifier for the user story")
+    status: Literal["active", "created", "done"] = Field(..., description="Status of the user story")
     description: str = Field(..., description="Description of the user story")
     definition_of_done: list[str] = Field(..., description="List of criteria for the user story to be considered done")
     tasks: list[str] = Field(..., description="List of task ids that are part of this user story")
@@ -264,20 +352,32 @@ class UserStory(BaseModel):
     dependencies: list[str] = Field(..., description="List of user story ids that must be completed before this one")
     used_by: list[str] = Field(..., description="List of user story ids that depend on this one")
 
+@flock_type
 class Task(BaseModel):
     task_id: str = Field(..., description="Unique identifier for the task")
+    status: Literal["active", "created", "done"] = Field(..., description="Status of the task")
     acceptance_criteria: list[str] = Field(..., description="List of acceptance criteria for the task")
     description: str = Field(..., description="Description of the task")
     estimated_lines_of_code: int = Field(..., description="Estimated number of lines of code for the task")
     dependencies: list[str] = Field(..., description="List of task ids that must be completed before this one")
     used_by: list[str] = Field(..., description="List of task ids that depend on this one")
-    file_actions: list["FileAction"] = Field(..., description="List of file actions for the task")
 
-class FileAction(BaseModel):
-    file_id: str = Field(..., description="Unique identifier for the file")
-    status: Literal["planned", "created", "done"] = Field(..., description="Status of the file")
-    action: Literal["create", "update", "delete"] = Field(..., description="Action to be taken on the file")
-    description: str = Field(..., description="Description of the action")
+@flock_type
+class ToDoItem(BaseModel):
+    todo_id: str = Field(..., description="Unique identifier for the todo item")
+    user_story_id: str = Field(..., description="Unique identifier for the user story")
+    task_id: str = Field(..., description="Unique identifier for the task")
+    cli_command_linux: str | None = Field(..., description="valid CLI command to be executed on linux")
+    cli_command_windows: str | None = Field(..., description="valid CLI command to be executed on windows")
+    cli_command_macos: str | None = Field(..., description="valid CLI command to be executed on macos")
+    file_content: str | None = Field(..., description="Complete content of the file if action is create_file or update_file")
+    description: str = Field(..., description="Description and/or reasoning of the todo item")
+
+@flock_type
+class TaskAndToDoItemList(BaseModel):
+    tasks: list[Task] = Field(..., description="List of tasks")
+    todo_items: list[ToDoItem] = Field(..., description="List of todo items")
+    
 
 
 
@@ -285,11 +385,81 @@ class FileAction(BaseModel):
 class Project(BaseModel):
     name: str = Field(..., description="Name of the project")
     description: str = Field(..., description="Description of the project")
-    requirements: list[str] = Field(..., description="List of requirements for the project")
+    implementation_plan: str = Field(..., description="High Level Implementation plan for the project in beautiful markdown")
+    readme: str = Field(..., description="README.md file for the project in beautiful markdown")
+    requirements: list[str] = Field(..., description="List of feature requirements for the project")
     tech_stack: list[str] = Field(..., description="List of technologies used in the project")
     user_stories: list[UserStory] | None = Field(..., description="List of user stories for the project")
-    tasks: list[Task]| None = Field(..., description="List of tasks for the project")
-    project_files: list[ProjectFile | ProjectCodeFile] = Field(..., description="Output data of the project")
+    # tasks: list[Task]| None = Field(..., description="List of tasks for the project")
+    # project_files: list[ProjectFile | ProjectCodeFile] = Field(..., description="Output data of the project")
+
+    def render_summary(self, console: Console) -> None:
+        """
+        Render a summary of the project in a beautiful format.
+        
+        Args:
+            console: The Rich console instance to use for output
+        """
+        console.print("\n")
+        console.rule(f"[bold blue]{self.name}")
+        console.print("\n")
+        console.print(self.description)
+        console.print("\n")
+
+        console.print(Markdown(self.implementation_plan))
+        console.print("\n")
+        console.print(Markdown(self.readme))
+        console.print("\n")
+        
+        # Create a table for requirements
+        req_table = Table(title="Project Requirements", box=box.ROUNDED)
+        req_table.add_column("Requirement", style="cyan")
+        
+        for req in self.requirements:
+            req_table.add_row(req)
+            
+        console.print(req_table)
+        console.print("\n")
+        
+        # Create a table for tech stack
+        tech_table = Table(title="Technology Stack", box=box.ROUNDED)
+        tech_table.add_column("Technology", style="green")
+        
+        for tech in self.tech_stack:
+            tech_table.add_row(tech)
+            
+        console.print(tech_table)
+        
+        # Summary of user stories and tasks
+        if self.user_stories:
+            console.print("\n")
+            console.rule("[bold cyan]User Stories")
+            console.print(f"\n[bold]Total User Stories:[/bold] {len(self.user_stories)}")
+            for user_story in self.user_stories:
+                console.print(f"\n[bold]User Story:[/bold] {user_story.user_story_id}")
+                console.print(f"[bold]Description:[/bold] {user_story.description}")
+                console.print(f"[bold]Definition of Done:[/bold] {user_story.definition_of_done}")
+                #console.print(f"[bold]Tasks:[/bold] {user_story.tasks}")
+                console.print(f"[bold]Story Points:[/bold] {user_story.story_points}")
+        
+        # if self.tasks:
+        #     console.print("\n")
+        #     console.rule("[bold cyan]Tasks")
+        #     console.print(f"\n[bold]Total Tasks:[/bold] {len(self.tasks)}")
+        #     for task in self.tasks:
+        #         console.print(f"\n[bold]Task:[/bold] {task.task_id}")
+        #         console.print(f"[bold]Description:[/bold] {task.description}")
+        #         console.print(f"[bold]Acceptance Criteria:[/bold] {task.acceptance_criteria}")
+        #         console.print(f"[bold]Estimated Lines of Code:[/bold] {task.estimated_lines_of_code}")
+        #         console.print(f"[bold]Dependencies:[/bold] {task.dependencies}")
+        #         console.print(f"[bold]Used By:[/bold] {task.used_by}")
+        
+        # # Summary of files
+        # console.print("\n")
+        # console.rule("[bold cyan]Files")
+        # console.print(f"\n[bold]Total Files:[/bold] {len(self.project_files)}")
+        
+        # console.rule("[bold cyan]End of Project Summary")
 
 
     
